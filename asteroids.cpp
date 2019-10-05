@@ -4,8 +4,8 @@
 #include "render.h"
 #include <stdio.h>
 
-#define NO_EXHAUST_PARTICLES 32
-#define NO_BULLETS 16
+#define EXHAUST_PARTICLES_MAX 32
+#define BULLETS_MAX 16
 
 
 #define FIXED_DELTA_TIME	1.0f/60.0f
@@ -42,8 +42,8 @@ struct Ship
 struct Entities
 {
 	Ship ship;
-	Bullet bullets[NO_BULLETS];
-	ExhaustParticles exhaustParticles[NO_EXHAUST_PARTICLES];
+	Bullet bullets[BULLETS_MAX];
+	ExhaustParticles exhaustParticles[EXHAUST_PARTICLES_MAX];
 };
 
 static Entities entities;
@@ -60,11 +60,11 @@ static void EntitiesStart()
 
 	Bullet* bullets_p = &entities.bullets[0];
 	Bullet defBullet; defBullet.radius = 10.0f; defBullet.pos = -10.0 * VECTOR2_ONE;
-	for (int i = 0; i < NO_BULLETS; i++) bullets_p[i] = defBullet;
+	for (int i = 0; i < BULLETS_MAX; i++) bullets_p[i] = defBullet;
 
 	ExhaustParticles* exhaustParticles_p = &entities.exhaustParticles[0];
 	ExhaustParticles exhaust; exhaust.radius = 5.0f; exhaust.pos = -10.0 * VECTOR2_ONE;
-	for (int i = 0; i < NO_EXHAUST_PARTICLES; i++) exhaustParticles_p[i] = exhaust;
+	for (int i = 0; i < EXHAUST_PARTICLES_MAX; i++) exhaustParticles_p[i] = exhaust;
 }
 
 void GameStart(int screenWidth, int screenHeight)
@@ -96,6 +96,7 @@ void GameUpdate()
 	//Ship
 	ship_p->facing = Rotate(ship_p->facing, shipRotSpeed);
 	ship_p->vel += shipSpeed * ship_p->facing;
+	if (shipSpeed == 0.0f) 	ship_p->vel = 0.99f * ship_p->vel;
 	ship_p->pos += FIXED_DELTA_TIME * ship_p->vel;
 	ship_p->pos.x = Wrapf(ship_p->pos.x, 0.0f, screen.width);
 	ship_p->pos.y = Wrapf(ship_p->pos.y, 0.0f, screen.height);
@@ -106,9 +107,9 @@ void GameUpdate()
 		Bullet* bullet_p = &bullets_p[ship_p->bulletIdx];
 		bullet_p->vel = 500.0f * ship_p->facing + ship_p->vel;
 		bullet_p->pos = ship_p->pos + ship_p->size.y*ship_p->facing;
-		ship_p->bulletIdx = (ship_p->bulletIdx + 1) % NO_BULLETS;
+		ship_p->bulletIdx = (ship_p->bulletIdx + 1) % BULLETS_MAX;
 	}
-	for (int i = 0; i < NO_BULLETS; i++)
+	for (int i = 0; i < BULLETS_MAX; i++)
 	{
 		Bullet* bullet_p = &bullets_p[i];
 		bullet_p->pos += FIXED_DELTA_TIME * bullet_p->vel;
@@ -120,9 +121,9 @@ void GameUpdate()
 		exhaustParticle_p->vel = -50.0f * ship_p->facing;
 		exhaustParticle_p->vel = Rotate(exhaustParticle_p->vel, GetRandomValue(-45, 45));
 		exhaustParticle_p->pos = ship_p->pos;
-		ship_p->exhaustIdx = (ship_p->exhaustIdx + 1) % NO_EXHAUST_PARTICLES;
+		ship_p->exhaustIdx = (ship_p->exhaustIdx + 1) % EXHAUST_PARTICLES_MAX;
 	}
-	for (int i = 0; i < NO_EXHAUST_PARTICLES; i++)
+	for (int i = 0; i < EXHAUST_PARTICLES_MAX; i++)
 	{
 		ExhaustParticles* exhaustParticle_p = &exhaustParticles_p[i];
 		exhaustParticle_p->pos += FIXED_DELTA_TIME * exhaustParticle_p->vel;
@@ -137,14 +138,14 @@ void GameUpdate()
 	DrawTriangle(point1, point2, point3, COLOR_GREEN);
 
 	// Bullets
-	for (int i = 0; i < NO_BULLETS; i++)
+	for (int i = 0; i < BULLETS_MAX; i++)
 	{
 		Bullet* bullet_p = &bullets_p[i];
 		DrawCircle(bullet_p->pos, bullet_p->radius, COLOR_RED);
 	}
 
 	// ExhaustParticles
-	for (int i = 0; i < NO_EXHAUST_PARTICLES; i++)
+	for (int i = 0; i < EXHAUST_PARTICLES_MAX; i++)
 	{
 		ExhaustParticles* exhaustParticle_p = &exhaustParticles_p[i];
 		DrawCircle(exhaustParticle_p->pos, exhaustParticle_p->radius, COLOR_WHITE, 4);

@@ -13,7 +13,6 @@
 // [ ] Asteroids!
 // [ ] Text
 // [ ] Menus
-// [ ] Decelerate
 // [ ] Drawing layers
 // [ ] UI
 // [ ] Collision
