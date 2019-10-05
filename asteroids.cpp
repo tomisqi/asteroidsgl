@@ -128,38 +128,27 @@ void GameUpdate()
 		exhaustParticle_p->pos += FIXED_DELTA_TIME * exhaustParticle_p->vel;
 	}
 
-	/// Push to render jobs
+	/// Drawing
 
 	// Ship
-	Triangle* triangle_p = (Triangle*)RenderJob_Push(TRIANGLE);
-	triangle_p->point1 = ship_p->pos + ship_p->size.y*ship_p->facing;
-	triangle_p->point2 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, 90.0f);
-	triangle_p->point3 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, -90.0f);
-	triangle_p->color = COLOR_GREEN;
+	Vector2 point1 = ship_p->pos + ship_p->size.y*ship_p->facing;
+	Vector2 point2 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, 90.0f);
+	Vector2 point3 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, -90.0f);
+	DrawTriangle(point1, point2, point3, COLOR_GREEN);
 
 	// Bullets
 	for (int i = 0; i < NO_BULLETS; i++)
 	{
 		Bullet* bullet_p = &bullets_p[i];
-		Circle* circle_p = (Circle*)RenderJob_Push(CIRCLE);
-		circle_p->pos = bullet_p->pos;
-		circle_p->radius = bullet_p->radius;
-		circle_p->color = COLOR_RED;
+		DrawCircle(bullet_p->pos, bullet_p->radius, COLOR_RED);
 	}
 
 	// ExhaustParticles
 	for (int i = 0; i < NO_EXHAUST_PARTICLES; i++)
 	{
 		ExhaustParticles* exhaustParticle_p = &exhaustParticles_p[i];
-		Circle* circle_p = (Circle*)RenderJob_Push(CIRCLE);
-		circle_p->pos = exhaustParticle_p->pos;
-		circle_p->radius = exhaustParticle_p->radius;
-		circle_p->color = COLOR_WHITE;
+		DrawCircle(exhaustParticle_p->pos, exhaustParticle_p->radius, COLOR_WHITE, 4);
 	}
 
-
-	PosVector2* posVector_p = (PosVector2*)RenderJob_Push(VECTOR);
-	posVector_p->pos = ship_p->pos;
-	posVector_p->vector = 50.0f*ship_p->facing;
-//	DrawVector2(ship.vel, ship.pos);
+	DrawVectorImmediate(50.0f*ship_p->facing, ship_p->pos);
 }

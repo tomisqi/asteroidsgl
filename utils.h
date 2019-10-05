@@ -8,7 +8,7 @@ static inline float Wrapf(float x, float min, float max)
 	return x;
 }
 
-static inline float Clampf(int x, float min, float max)
+static inline float Clampf(float x, float min, float max)
 {
 	if (x > max) return max;
 	if (x < min) return min;

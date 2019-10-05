@@ -39,10 +39,14 @@ struct PosVector2
 	Vector2 vector;
 };
 
-void RenderJob_Init(int maxTriangleCount, int maxCircleCount, int maxRectCount, int maxVectorCount);
+void Renderer_Init(int maxVertCount);
 
-void RenderJob_NewFrame();
+void Renderer_NewFrame();
 
-void RenderJob_Render();
+void Renderer_Render();
 
-void* RenderJob_Push(RenderShape shape);
+void DrawCircle(Vector2 pos, float radius, Color color, int edgeCount = 8);
+
+void DrawTriangle(Vector2 point1, Vector2 point2, Vector2 point3, Color color);
+
+void DrawVectorImmediate(Vector2 v, Vector2 pos);

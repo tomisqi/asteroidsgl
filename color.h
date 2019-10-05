@@ -25,3 +25,14 @@ static inline Color Col(int r, int g, int b, int a = 255)
 {
 	return Col((float)r / 255, (float)g / 255, (float)b / 255, (float)a / 255);
 }
+
+static inline unsigned int ColorToU32(Color color)
+{
+	int r = (int)(color.r * 255);
+	int g = (int)(color.g * 255);
+	int b = (int)(color.b * 255);
+	int a = (int)(color.a * 255);
+
+	unsigned int result = ((r & 0xff) << 0) | ((g & 0xff) << 8) | ((b & 0xff) << 16) | (a & 0xff) << 24;
+	return result;
+}

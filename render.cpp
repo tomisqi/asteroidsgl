@@ -1,165 +1,130 @@
-#include "render.h"
 #include <stdint.h>
 #include <string.h>
 #include <GLFW/glfw3.h>
 #include <stdlib.h>
 #include <assert.h>
+#include "render.h"
 
-struct RenderList
+#define OFFSET_OF(_TYPE, _MEMBER) ((size_t)&(((_TYPE*)0)->_MEMBER)) 
+
+struct DrawVert
 {
-	int count;
-	int size;
-	void* elements;
+	Vector2 vert;
+	unsigned int color;
 };
 
-struct RenderJob
+typedef unsigned short DrawIdx;
+
+struct DrawList
 {
-	union
-	{
-		RenderList shapes[MAX_SHAPES];
-		struct 
-		{
-			RenderList triangles;
-			RenderList circles;
-			RenderList rects;
-			RenderList vectors;
-		};
-	};
+	DrawVert* vertBuffer;
+	DrawIdx* idxBuffer;
+	unsigned short vertCount;
+	unsigned short maxVertCount;
 };
 
-static RenderJob render;
+struct ReservedDrawData
+{
+	DrawVert* vertBuffer;
+	DrawIdx* idxBuffer;
+};
+
+static DrawList drawList;
 static long frameCounter;
 
-void RenderJob_Init(int maxTriangleCount, int maxCircleCount, int maxRectCount, int maxVectors)
+void Renderer_Init(int maxVertCount)
 {
-	memset(&render, 0, sizeof(render));
-	render.triangles.size = maxTriangleCount;
-	render.circles.size = maxCircleCount;
-	render.rects.size = maxRectCount;
-	render.vectors.size = maxVectors;
+	assert(maxVertCount < UINT16_MAX);
+	memset(&drawList, 0, sizeof(drawList));
 
-	render.triangles.elements = malloc(sizeof(Triangle) * maxTriangleCount);
-	render.circles.elements = malloc(sizeof(Circle) * maxCircleCount);
-	render.rects.elements = malloc(sizeof(Rect) * maxRectCount);
-	render.vectors.elements = malloc(sizeof(PosVector2) * maxVectors);
+	drawList.vertBuffer = (DrawVert*)malloc(sizeof(DrawVert) * maxVertCount);
+	drawList.idxBuffer = (DrawIdx*)malloc(sizeof(DrawIdx) * maxVertCount);
+	drawList.maxVertCount = maxVertCount;
 
 	frameCounter = 0;
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
 }
 
-void RenderJob_NewFrame()
+void Renderer_NewFrame()
 {
-	for (int i = 0; i < MAX_SHAPES; i++)
-	{
-		render.shapes[i].count = 0;
-	}
+	drawList.vertCount = 0;
 	frameCounter++;
 }
 
-void RenderJob_Render()
+void Renderer_Render()
 {
-	// Triangles
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	glBegin(GL_TRIANGLES);
-	{
-		Triangle* triangles_p = (Triangle*)render.triangles.elements;
-		for (int i = 0; i < render.triangles.count; i++)
-		{
-			Triangle* triangle_p = &triangles_p[i];
-			glColor4f(triangle_p->color.r, triangle_p->color.g, triangle_p->color.b, 1.0f);
-			glVertex2f(triangle_p->point1.x, triangle_p->point1.y);
-			glVertex2f(triangle_p->point2.x, triangle_p->point2.y);
-			glVertex2f(triangle_p->point3.x, triangle_p->point3.y);
-		}
-	}
-	glEnd();
-
-	// Circles
-#define NO_TRIANGLES 4
-	float theta = 360.0f / NO_TRIANGLES;
-	glBegin(GL_TRIANGLES);
-	{
-		Circle* circles_p = (Circle*)render.circles.elements;
-		for (int i = 0; i < render.circles.count; i++)
-		{
-			Circle* circle_p = &circles_p[i];
-			glColor4f(circle_p->color.r, circle_p->color.g, circle_p->color.b, circle_p->color.a);
-
-			Vector2 point0 = circle_p->pos;
-			Vector2 v = circle_p->radius * VECTOR2_RIGHT;
-			Vector2 point1 = point0 + v;
-			for (int i = 0; i <= NO_TRIANGLES; i++)
-			{
-				glVertex2f(point0.x, point0.y);
-				glVertex2f(point1.x, point1.y);
-				v = Rotate(v, theta);
-				point1 = point0 + v;
-				glVertex2f(point1.x, point1.y);
-			}
-		}
-	}
-	glEnd();
-
-
-	// Vectors
-#define TIP_LENGTH 10.0f
-	glBegin(GL_LINES);
-	{
-		PosVector2* vectors = (PosVector2*)render.vectors.elements;
-		for (int i = 0; i < render.vectors.count; i++)
-		{
-			PosVector2* posVector = &vectors[i];
-			Vector2 pos = posVector->pos;
-			Vector2 v = posVector->vector;
-			Vector2 end = pos + v;
-			Vector2 tip = TIP_LENGTH * Normalize(pos - end);
-			Vector2 tip1 = end + Rotate(tip, 45.0f);
-			Vector2 tip2 = end + Rotate(tip, -45.0f);
-
-			glVertex2f(pos.x, pos.y);
-			glVertex2f(end.x, end.y);
-			glVertex2f(end.x, end.y);
-			glVertex2f(tip1.x, tip1.y);
-			glVertex2f(end.x, end.y);
-			glVertex2f(tip2.x, tip2.y);
-
-		}
-	}
-	glEnd();
+	glVertexPointer(2, GL_FLOAT, sizeof(DrawVert), (uint8_t*)drawList.vertBuffer + OFFSET_OF(DrawVert, vert));
+	glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(DrawVert), (uint8_t*)drawList.vertBuffer + OFFSET_OF(DrawVert, color));
+	glDrawElements(GL_TRIANGLES, drawList.vertCount, GL_UNSIGNED_SHORT, drawList.idxBuffer);
 }
 
-void* RenderJob_Push(RenderShape shape)
+static ReservedDrawData PushVerts(int count)
 {
-	int elemSize = 0;
-	RenderList* renderList_p = nullptr;
-	switch (shape)
+	DrawVert* vertBuff = &drawList.vertBuffer[drawList.vertCount];
+	DrawIdx* idxBuff = &drawList.idxBuffer[drawList.vertCount];
+	idxBuff[0] = drawList.vertCount;
+
+	drawList.vertCount += count;
+	assert(drawList.vertCount <= drawList.maxVertCount);
+
+	ReservedDrawData resDrawData = {vertBuff, idxBuff};
+	return resDrawData;
+}
+
+void DrawCircle(Vector2 pos, float radius, Color color, int edgeCount)
+{
+	ReservedDrawData drawData = PushVerts(edgeCount * 3);
+	unsigned int colorU32 = ColorToU32(color);
+
+	float theta = 360.0f / edgeCount;
+	Vector2 point0 = pos;
+	Vector2 v = radius * VECTOR2_RIGHT;
+	Vector2 point1 = point0 + v;
+	DrawIdx elemIdx = drawData.idxBuffer[0];
+	for (int i = 0; i < edgeCount; i++)
 	{
-	case TRIANGLE:
-		elemSize = sizeof(Triangle);
-		renderList_p = &render.triangles;
-		break;
-	case CIRCLE:
-		elemSize = sizeof(Circle);
-		renderList_p = &render.circles;
-		break;
-	case RECT:
-		elemSize = sizeof(Rect);
-		renderList_p = &render.rects;
-		break;
-	case VECTOR:
-		elemSize = sizeof(PosVector2);
-		renderList_p = &render.vectors;
-		break;
-	default:
-		break;
+		v = Rotate(v, theta);
+		Vector2 point2 = point0 + v;
+
+		drawData.vertBuffer[i * 3 + 0].vert = point0; drawData.vertBuffer[i * 3 + 0].color = colorU32; drawData.idxBuffer[i * 3 + 0] = elemIdx + 0;
+		drawData.vertBuffer[i * 3 + 1].vert = point1; drawData.vertBuffer[i * 3 + 1].color = colorU32; drawData.idxBuffer[i * 3 + 1] = elemIdx + 1;
+		drawData.vertBuffer[i * 3 + 2].vert = point2; drawData.vertBuffer[i * 3 + 2].color = colorU32; drawData.idxBuffer[i * 3 + 2] = elemIdx + 2;
+		elemIdx += 3;
+
+		point1 = point2;
 	}
-	assert(renderList_p != nullptr);
-	if (renderList_p->count < renderList_p->size)
+}
+
+void DrawTriangle(Vector2 point1, Vector2 point2, Vector2 point3, Color color)
+{
+	ReservedDrawData drawData = PushVerts(3);
+	unsigned int colorU32 = ColorToU32(color);
+	DrawIdx elemIdx = drawData.idxBuffer[0];
+	drawData.vertBuffer[0].vert = point1; drawData.vertBuffer[0].color = colorU32; drawData.idxBuffer[0] = elemIdx + 0;
+	drawData.vertBuffer[1].vert = point2; drawData.vertBuffer[1].color = colorU32; drawData.idxBuffer[1] = elemIdx + 1;
+	drawData.vertBuffer[2].vert = point3; drawData.vertBuffer[2].color = colorU32; drawData.idxBuffer[2] = elemIdx + 2;
+}
+
+
+#define TIP_LENGTH 10.0f
+void DrawVectorImmediate(Vector2 v, Vector2 pos)
+{
+	glBegin(GL_LINES);
 	{
-		void* result = (uint8_t*)renderList_p->elements + elemSize * renderList_p->count;
-		renderList_p->count++;
-		return result;
+		Vector2 end = pos + v;
+		Vector2 tip = TIP_LENGTH * Normalize(pos - end);
+		Vector2 tip1 = end + Rotate(tip, 45.0f);
+		Vector2 tip2 = end + Rotate(tip, -45.0f);
+
+		glVertex2f(pos.x, pos.y);
+		glVertex2f(end.x, end.y);
+		glVertex2f(end.x, end.y);
+		glVertex2f(tip1.x, tip1.y);
+		glVertex2f(end.x, end.y);
+		glVertex2f(tip2.x, tip2.y);
 	}
-	assert(false);
-	return nullptr;
+	glEnd();
 }
 

@@ -70,8 +70,8 @@ int main(void)
 	GameInput_BindButton(BUTTON_UP_ARROW, GLFW_KEY_UP);
 	GameInput_BindButton(BUTTON_LEFT_ARROW, GLFW_KEY_LEFT);
 	GameInput_BindButton(BUTTON_RIGHT_ARROW, GLFW_KEY_RIGHT);
-
-	RenderJob_Init(1, 16+32, 0, 1);
+	
+	Renderer_Init(2048);
 
 	GameStart(WINDOW_SIZE, WINDOW_SIZE);
 
@@ -88,11 +88,11 @@ int main(void)
 		}
 
 		GameInput_NewFrame(buttonStates);
-		RenderJob_NewFrame();
+		Renderer_NewFrame();
 
 		GameUpdate();
 
-		RenderJob_Render();
+		Renderer_Render();
 
 		glfwMakeContextCurrent(window);
 		glfwSwapBuffers(window);
