@@ -8,6 +8,7 @@
 #include "asteroids.h"
 #include "utils.h"
 #include <time.h>
+#include "debugrender.h"
 
 // TODO:
 // [ ] Text
@@ -15,7 +16,6 @@
 // [ ] Drawing layers
 // [ ] UI
 // [ ] Collision
-// [ ] Despawn asteroids
 // [ ] Damage
 
 #define WINDOW_SIZE			1000
@@ -72,6 +72,9 @@ int main(void)
 	GameInput_BindButton(BUTTON_RIGHT_ARROW, GLFW_KEY_RIGHT);
 	
 	Renderer_Init(2048);
+	DebugRenderer_Init(512);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
 
 	GameStart(WINDOW_SIZE, WINDOW_SIZE);
 
@@ -84,15 +87,16 @@ int main(void)
 		for (int i = 0; i < MAX_BUTTONS; i++)
 		{
 			buttonStates[i] = (ButtonState)glfwGetKey(window, GameInput_GetBinding(i)); // TODO: Remove casting
-
 		}
 
 		GameInput_NewFrame(buttonStates);
 		Renderer_NewFrame();
+		DebugRenderer_NewFrame();
 
 		GameUpdate();
 
 		Renderer_Render();
+		DebugRenderer_Render();
 
 		glfwMakeContextCurrent(window);
 		glfwSwapBuffers(window);

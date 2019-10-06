@@ -5,18 +5,9 @@
 #include "utils.h"
 #include "render.h"
 #include "rect.h"
+#include "debugrender.h"
 
 #define FIXED_DELTA_TIME		(1.0f/60.0f)
-
-#define EXHAUST_PARTICLES_MAX	32
-#define BULLETS_MAX				16
-#define ASTEROIDS_MAX			128
-
-struct Range
-{
-	int min;
-	int max;
-};
 
 struct CircleEntity
 {
@@ -61,6 +52,12 @@ struct Game
 	double spawnInterval;
 };
 
+
+#define EXHAUST_PARTICLES_MAX	32
+#define BULLETS_MAX				16
+#define ASTEROIDS_MAX			128
+#define ASTEROID_MIN_SPEED		60
+#define ASTEROID_MAX_SPEED		ASTEROID_MIN_SPEED + 40
 struct Entities
 {
 	Ship ship;
@@ -84,7 +81,7 @@ static void EntitiesStart()
 	ship_p->bulletIdx = 0;
 
 	Bullet* bullets_p = &entities.bullets[0];
-	Bullet defBullet; defBullet.radius = 10.0f; defBullet.pos = -10.0 * VECTOR2_ONE;
+	Bullet defBullet; defBullet.radius = 8.0f; defBullet.pos = -10.0 * VECTOR2_ONE;
 	for (int i = 0; i < BULLETS_MAX; i++) bullets_p[i] = defBullet;
 
 	ExhaustParticles* exhaustParticles_p = &entities.exhaustParticles[0];
@@ -103,7 +100,7 @@ static void GameInit(int screenWidth, int screenHeight)
 	game.tCurr = 0.0f;
 	game.spawnInterval = 3.0f;
 
-	game.screenRect = NewRect(VECTOR2_ZERO, V2(screenWidth, screenHeight));
+	game.screenRect = RectNew(VECTOR2_ZERO, V2(screenWidth, screenHeight));
 
 }
 
@@ -142,7 +139,7 @@ void GameUpdate()
 
 	if ((game.tCurr - game.tLastSpawn) > game.spawnInterval)
 	{
-		SpawnAsteroids(2, asteroids_p);
+		SpawnAsteroids(1, asteroids_p);
 		game.tLastSpawn = game.tCurr;
 	}
 	
@@ -220,9 +217,10 @@ void GameUpdate()
 	{
 		Asteroid* asteroid_p = &asteroids_p[i];
 		DrawCircleWStartAngle(asteroid_p->pos, asteroid_p->radius, Col(255, 123, 0), asteroid_p->edges, asteroid_p->rot);
+		//Debug_DrawVector(50.0f*Normalize(asteroid_p->vel), asteroid_p->pos, COLOR_GREEN);
 	}
 
-	DrawVectorImmediate(50.0f*ship_p->facing, ship_p->pos);
+	Debug_DrawVector(50.0f*ship_p->facing, ship_p->pos, COLOR_GREEN);
 
 	game.tCurr += FIXED_DELTA_TIME;
 }
@@ -245,21 +243,42 @@ static void SpawnAsteroids(int count, Asteroid* asteroids_p)
 		asteroid_p->pos = spawnPoint;
 		asteroid_p->radius = GetRandomValue(20, 70);
 		asteroid_p->rotSpeed = GetRandomSign()*GetRandomValue(45, 75);
-		asteroid_p->vel = GetRandomValue(40, 70) * Normalize(screenRect.center - spawnPoint);
+		asteroid_p->vel = GetRandomValue(ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED) * Normalize(screenRect.center - spawnPoint);
 		asteroid_p->edges = GetRandomValue(5, 9);
 	}
 
 	entities.asteroidsCount += count;
 }
 
-
 static void DestroyOffScreenAsteroids(Asteroid* asteroids_p)
 {
-#if 0
-	for (int i = 0; i < entities.asteroidsCount; i++)
+	int asteroidCount = entities.asteroidsCount;
+
+	for (int i = entities.asteroidsCount - 1; i >= 0; i--)
 	{
 		Asteroid* asteroid_p = &asteroids_p[i];
+		bool offScreenAndMovingAway = false;
 
+		if (!RectContains(game.screenRect, asteroid_p->pos))	
+		{
+			Vector2 velNorm = Normalize(asteroid_p->vel);
+			Vector2 toCenterNorm = Normalize(game.screenRect.center - asteroid_p->pos);
+			if (Dot(velNorm, toCenterNorm) < 0.0f)
+			{			
+				offScreenAndMovingAway = true;
+			}
+		}
+
+		if (offScreenAndMovingAway)
+		{
+			// Move it past asteroidCount
+			Asteroid* tmp = &asteroids_p[i];
+			asteroids_p[i] = asteroids_p[asteroidCount - 1];
+			asteroids_p[asteroidCount - 1] = *tmp;
+
+			asteroidCount--;
+		}
 	}
-#endif
+	assert(asteroidCount >= 0);
+	entities.asteroidsCount = asteroidCount;
 }

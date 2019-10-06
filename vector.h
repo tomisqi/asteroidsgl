@@ -100,3 +100,8 @@ static inline Vector2 Rotate(Vector2 v, float deg)
 	float theta = DegToRad(deg);
 	return v.x*V2(cosf(theta), sinf(theta)) + v.y*V2(-sinf(theta), cosf(theta));
 }
+
+static inline float Dot(Vector2 v1, Vector2 v2)
+{
+	return v1.x * v2.x + v1.y * v2.y;
+}

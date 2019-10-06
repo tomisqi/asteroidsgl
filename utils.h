@@ -1,6 +1,8 @@
 #pragma once
 #include <stdlib.h>
 
+#define OFFSET_OF(_TYPE, _MEMBER) ((size_t)&(((_TYPE*)0)->_MEMBER))
+
 static inline float Wrapf(float x, float min, float max)
 {
 	if (x > max) return min;
