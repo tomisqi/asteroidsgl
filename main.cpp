@@ -10,12 +10,13 @@
 #include <time.h>
 
 // TODO:
-// [ ] Asteroids!
 // [ ] Text
 // [ ] Menus
 // [ ] Drawing layers
 // [ ] UI
 // [ ] Collision
+// [ ] Despawn asteroids
+// [ ] Damage
 
 #define WINDOW_SIZE			1000
 

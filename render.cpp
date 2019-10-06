@@ -73,14 +73,14 @@ static ReservedDrawData PushVerts(int count)
 	return resDrawData;
 }
 
-void DrawCircle(Vector2 pos, float radius, Color color, int edgeCount)
+void DrawCircleWStartAngle(Vector2 pos, float radius, Color color, int edgeCount, float startAngle)
 {
 	ReservedDrawData drawData = PushVerts(edgeCount * 3);
 	unsigned int colorU32 = ColorToU32(color);
 
 	float theta = 360.0f / edgeCount;
 	Vector2 point0 = pos;
-	Vector2 v = radius * VECTOR2_RIGHT;
+	Vector2 v = radius * Rotate(VECTOR2_RIGHT, startAngle);
 	Vector2 point1 = point0 + v;
 	DrawIdx elemIdx = drawData.idxBuffer[0];
 	for (int i = 0; i < edgeCount; i++)
@@ -95,6 +95,11 @@ void DrawCircle(Vector2 pos, float radius, Color color, int edgeCount)
 
 		point1 = point2;
 	}
+}
+
+void DrawCircle(Vector2 pos, float radius, Color color, int edgeCount)
+{
+	DrawCircleWStartAngle(pos, radius, color, edgeCount, 0.0f);
 }
 
 void DrawTriangle(Vector2 point1, Vector2 point2, Vector2 point3, Color color)

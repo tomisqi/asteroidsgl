@@ -26,3 +26,10 @@ static inline int GetRandomValue(int min, int max)
 
 	return min + rand() % (abs(max - min) + 1);
 }
+
+static inline int GetRandomSign()
+{
+	int signs[2] = { -1, 1 };
+	int randVal = GetRandomValue(0, 1);
+	return signs[randVal];
+}
