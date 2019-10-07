@@ -18,7 +18,6 @@ struct CircleEntity
 };
 
 typedef CircleEntity ExhaustParticles;
-typedef CircleEntity Bullet;
 
 struct Ship
 {
@@ -27,10 +26,17 @@ struct Ship
 	Vector2 pos;
 	Vector2 facing;
 	Vector2 vel;
-	int bulletIdx;
 	int exhaustIdx;
 };
 
+struct Bullet
+{
+	float radius;
+
+	Vector2 pos;
+	Vector2 vel;
+	double tDestroy;
+};
 
 struct Asteroid
 {
@@ -58,27 +64,28 @@ struct Game
 #define ASTEROIDS_MAX			128
 #define ASTEROID_MIN_SPEED		60
 #define ASTEROID_MAX_SPEED		ASTEROID_MIN_SPEED + 40
+#define BULLET_LIFETIME			1
 struct Entities
 {
 	Ship ship;
 	Bullet bullets[BULLETS_MAX];
-	ExhaustParticles exhaustParticles[EXHAUST_PARTICLES_MAX];
-
+	int bulletCount;
 	Asteroid asteroids[ASTEROIDS_MAX];
 	int asteroidsCount;
+
+	ExhaustParticles exhaustParticles[EXHAUST_PARTICLES_MAX];
 };
 
 static Entities entities;
 static Game game;
 
-static void EntitiesStart()
+static void EntitiesInit()
 {
 	Ship* ship_p = &entities.ship;
 	ship_p->facing = VECTOR2_UP;
 	ship_p->pos = 500.0f * VECTOR2_ONE;
 	ship_p->size = 30.0f * V2(1.0f, 1.2f);
 	ship_p->vel = VECTOR2_ZERO;
-	ship_p->bulletIdx = 0;
 
 	Bullet* bullets_p = &entities.bullets[0];
 	Bullet defBullet; defBullet.radius = 8.0f; defBullet.pos = -10.0 * VECTOR2_ONE;
@@ -91,6 +98,9 @@ static void EntitiesStart()
 	Asteroid* asteroids_p = &entities.asteroids[0];
 	Asteroid asteroid; asteroid.radius = 7.0f; asteroid.pos = -10.0 * VECTOR2_ONE; asteroid.rot = 0.0f;
 	for (int i = 0; i < ASTEROIDS_MAX; i++) asteroids_p[i] = asteroid;
+
+	entities.bulletCount = 0;
+	entities.asteroidsCount = 0;
 }
 
 static void GameInit(int screenWidth, int screenHeight)
@@ -105,12 +115,13 @@ static void GameInit(int screenWidth, int screenHeight)
 }
 
 static void SpawnAsteroids(int count, Asteroid* asteroids_p);
+static void DestroyOldBullets(Bullet* bullets_p);
 static void DestroyOffScreenAsteroids(Asteroid* asteroids_p);
 
 void GameStart(int screenWidth, int screenHeight)
 {
 	GameInit(screenWidth, screenHeight);
-	EntitiesStart();
+	EntitiesInit();
 }
 
 void GameUpdate()
@@ -132,7 +143,7 @@ void GameUpdate()
 	if (GameInput_ButtonDown(BUTTON_SPACE)) shoot = true;
 
 	/// Destroying
-
+	DestroyOldBullets(bullets_p);
 	DestroyOffScreenAsteroids(asteroids_p);
 
 	/// Spawning
@@ -156,15 +167,19 @@ void GameUpdate()
 	// Bullets
 	if (shoot)
 	{
-		Bullet* bullet_p = &bullets_p[ship_p->bulletIdx];
+		assert(entities.bulletCount < BULLETS_MAX);
+		Bullet* bullet_p = &bullets_p[entities.bulletCount];
 		bullet_p->vel = 500.0f * ship_p->facing + ship_p->vel;
 		bullet_p->pos = ship_p->pos + ship_p->size.y*ship_p->facing;
-		ship_p->bulletIdx = (ship_p->bulletIdx + 1) % BULLETS_MAX;
+		bullet_p->tDestroy = game.tCurr + BULLET_LIFETIME;
+		entities.bulletCount++;
 	}
-	for (int i = 0; i < BULLETS_MAX; i++)
+	for (int i = 0; i < entities.bulletCount; i++)
 	{
 		Bullet* bullet_p = &bullets_p[i];
 		bullet_p->pos += FIXED_DELTA_TIME * bullet_p->vel;
+		bullet_p->pos.x = Wrapf(bullet_p->pos.x, 0.0f, game.screenRect.size.x);
+		bullet_p->pos.y = Wrapf(bullet_p->pos.y, 0.0f, game.screenRect.size.y);
 	}
 
 	// Exhaust particles
@@ -199,10 +214,10 @@ void GameUpdate()
 	DrawTriangle(point1, point2, point3, Col(20, 89, 255));
 
 	// Bullets
-	for (int i = 0; i < BULLETS_MAX; i++)
+	for (int i = 0; i < entities.bulletCount; i++)
 	{
 		Bullet* bullet_p = &bullets_p[i];
-		DrawCircle(bullet_p->pos, bullet_p->radius, COLOR_RED);
+		DrawCircle(bullet_p->pos, bullet_p->radius, COLOR_MAGENTA);
 	}
 
 	// ExhaustParticles
@@ -216,7 +231,7 @@ void GameUpdate()
 	for (int i = 0; i < entities.asteroidsCount; i++)
 	{
 		Asteroid* asteroid_p = &asteroids_p[i];
-		DrawCircleWStartAngle(asteroid_p->pos, asteroid_p->radius, Col(255, 123, 0), asteroid_p->edges, asteroid_p->rot);
+		DrawCircleWStartAngle(asteroid_p->pos, asteroid_p->radius, Col(255, 119, 0), asteroid_p->edges, asteroid_p->rot);
 		//Debug_DrawVector(50.0f*Normalize(asteroid_p->vel), asteroid_p->pos, COLOR_GREEN);
 	}
 
@@ -251,6 +266,27 @@ static void SpawnAsteroids(int count, Asteroid* asteroids_p)
 	}
 
 	entities.asteroidsCount += count;
+}
+
+static void DestroyOldBullets(Bullet* bullets_p)
+{
+	int bulletCount = entities.bulletCount;
+
+	for (int i = entities.bulletCount - 1; i >= 0; i--)
+	{
+		Bullet* bullet_p = &bullets_p[i];
+		if (game.tCurr > bullet_p->tDestroy)
+		{
+			// Move it past bulletCount
+			Bullet* tmp = &bullets_p[i];
+			bullets_p[i] = bullets_p[bulletCount - 1];
+			bullets_p[bulletCount - 1] = *tmp;
+
+			bulletCount--;
+		}
+	}
+	assert(bulletCount >= 0);
+	entities.bulletCount = bulletCount;
 }
 
 static void DestroyOffScreenAsteroids(Asteroid* asteroids_p)
