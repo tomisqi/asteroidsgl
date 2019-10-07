@@ -98,7 +98,7 @@ static void GameInit(int screenWidth, int screenHeight)
 	game = { 0 };
 	game.level = 0;
 	game.tCurr = 0.0f;
-	game.spawnInterval = 3.0f;
+	game.spawnInterval = 1.0f;
 
 	game.screenRect = RectNew(VECTOR2_ZERO, V2(screenWidth, screenHeight));
 
@@ -229,22 +229,25 @@ static void SpawnAsteroids(int count, Asteroid* asteroids_p)
 {
 	Rect screenRect = game.screenRect;
 	assert(entities.asteroidsCount + count <= ASTEROIDS_MAX);
-	Vector2 randPos = V2(GetRandomValue(-10.0f, screenRect.size.x + 10.0f), GetRandomValue(-10.0f, screenRect.size.y + 10.0f));
+	Vector2 randPos = V2(GetRandomValue(100.0f, screenRect.size.x - 100.0f), GetRandomValue(100.0f, screenRect.size.y - 100.0f));
 	Vector2 spawnPoints[4] = {	V2(randPos.x, -10.0f),
 								V2(randPos.x, screenRect.size.y + 10.0f),
 								V2(-10.0f, randPos.y), 
 								V2(screenRect.size.x + 10.0f, randPos.y) };
-
-	
+	int spawnIdx = GetRandomValue(0, 3);
+	int destIdx = (spawnIdx + GetRandomValue(1, 3)) % 4;
 	for (int i = entities.asteroidsCount; i < entities.asteroidsCount + count; i++)
 	{
 		Asteroid* asteroid_p = &asteroids_p[i];
-		Vector2 spawnPoint = spawnPoints[i%4];
+		Vector2 spawnPoint = spawnPoints[spawnIdx];
+		Vector2 destPoint = spawnPoints[destIdx];
 		asteroid_p->pos = spawnPoint;
 		asteroid_p->radius = GetRandomValue(20, 70);
 		asteroid_p->rotSpeed = GetRandomSign()*GetRandomValue(45, 75);
-		asteroid_p->vel = GetRandomValue(ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED) * Normalize(screenRect.center - spawnPoint);
+		asteroid_p->vel = GetRandomValue(ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED) * Normalize(destPoint - spawnPoint);
 		asteroid_p->edges = GetRandomValue(5, 9);
+		spawnIdx = (spawnIdx + 1) % 4;
+		destIdx = (destIdx + 1) % 4;
 	}
 
 	entities.asteroidsCount += count;

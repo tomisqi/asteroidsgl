@@ -77,3 +77,24 @@ void Debug_DrawRect(Rect rect, Color color)
 	drawData.vertBuffer[7].vert = point1; drawData.vertBuffer[7].color = colorU32; drawData.idxBuffer[7] = elemIdx + 7;
 }
 
+#define LINE_CROSS_LENGTH 10
+void Debug_DrawCross(Vector2 pos, Color color = COLOR_WHITE)
+{
+	ReservedDrawData drawData = PushVerts(&debugDrawList, 4);
+	DrawIdx elemIdx = drawData.idxBuffer[0];
+	assert(debugDrawList.vertCount <= debugDrawList.maxVertCount);
+
+	unsigned int colorU32 = ColorToU32(color);
+
+	Vector2 v = LINE_CROSS_LENGTH * VECTOR2_ONE;
+
+	Vector2 point1 = pos - 0.5f * v;
+	Vector2 point2 = point1 + v;
+	Vector2 point3 = point1 + v.x * VECTOR2_RIGHT;
+	Vector2 point4 = point1 + v.y * VECTOR2_UP;
+
+	drawData.vertBuffer[0].vert = point1; drawData.vertBuffer[0].color = colorU32; drawData.idxBuffer[0] = elemIdx + 0;
+	drawData.vertBuffer[1].vert = point2; drawData.vertBuffer[1].color = colorU32; drawData.idxBuffer[1] = elemIdx + 1;
+	drawData.vertBuffer[2].vert = point3; drawData.vertBuffer[2].color = colorU32; drawData.idxBuffer[2] = elemIdx + 2;
+	drawData.vertBuffer[3].vert = point4; drawData.vertBuffer[3].color = colorU32; drawData.idxBuffer[3] = elemIdx + 3;
+}
