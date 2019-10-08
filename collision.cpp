@@ -77,8 +77,8 @@ void Collisions_CheckCollisions()
 			case COLLISION_CIRLE_CIRCLE:
 				if (collisionAllowed && CircleCircleCollision(collider1, collider2))
 				{
-					(*collider1->collisionCallback)(collider2);
-					(*collider2->collisionCallback)(collider1);
+					(*collider1->collisionCallback)(collider1, collider2);
+					(*collider2->collisionCallback)(collider2, collider1);
 				}
 				break;
 			case COLLISION_BOX_BOX:

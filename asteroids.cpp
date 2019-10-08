@@ -57,19 +57,18 @@ struct Asteroid
 	float rotSpeed;
 };
 
-struct Game
+enum EntityType
 {
-	Rect screenRect;
-	int level;
-	double tCurr;
-	double tLastSpawn;
-	double spawnInterval;
+	SHIP = 1,
+	BULLET,
+	EXHAUST_PARTICLE,
+	ASTEROID,
+	ENTITIES_TYPE_MAX,
 };
-
 
 #define EXHAUST_PARTICLES_MAX	32
 #define BULLETS_MAX				16
-#define ASTEROIDS_MAX			128
+#define ASTEROIDS_MAX			64
 #define ASTEROID_MIN_SPEED		60
 #define ASTEROID_MAX_SPEED		ASTEROID_MIN_SPEED + 40
 #define BULLET_LIFETIME			1
@@ -84,21 +83,56 @@ struct Entities
 	ExhaustParticles exhaustParticles[EXHAUST_PARTICLES_MAX];
 };
 
+struct GuidDescriptor
+{
+	EntityType entityType;
+	void* data;
+};
+
+#define MAX_ENTITIES  (1/*ship*/ + BULLETS_MAX + ASTEROIDS_MAX + EXHAUST_PARTICLES_MAX + 1/*dummy*/)
+struct Game
+{
+	Rect screenRect;
+	int level;
+	double tCurr;
+	double tLastSpawn;
+	double spawnInterval;
+	GuidDescriptor guidTable[MAX_ENTITIES];
+};
+
+
 // Globals
 static Entities entities;
 static Game game;
-static GUID gguid = 0;
+static GUID gguid = 1;
 
 static void SpawnAsteroids(int count, Asteroid* asteroids_p);
 static void DestroyOldBullets(Bullet* bullets_p);
 static void DestroyOffScreenAsteroids(Asteroid* asteroids_p);
-static void AsteroidCollision(Collider* collider);
-static void ShipCollision(Collider* collider);
-static void BulletCollision(Collider* collider);
+static void ShipCollision(Collider* collider, Collider* otherCollider);
+static void AsteroidCollision(Collider* collider, Collider* otherCollider);
+static void BulletCollision(Collider* collider, Collider* otherCollider);
 
 static GUID GetNextGUID()
 {
 	return gguid++;
+}
+
+static GUID AddToGUIDTable(EntityType entityType, void* entityData)
+{
+	GuidDescriptor desc = { entityType, entityData};
+	GUID guid = GetNextGUID();
+	assert(guid < MAX_ENTITIES);
+	assert(game.guidTable[guid].data == NULL);//making sure we are not overwriting
+	game.guidTable[guid] = desc;
+	return guid;
+}
+
+static void SwapGuidDescriptors(GUID guid1, GUID guid2)
+{
+	GuidDescriptor tmp = game.guidTable[guid1];
+	game.guidTable[guid1] = game.guidTable[guid2];
+	game.guidTable[guid2] = tmp;
 }
 
 static void EntitiesInit()
@@ -106,7 +140,7 @@ static void EntitiesInit()
 	entities = {0};
 
 	Ship* ship_p = &entities.ship;
-	ship_p->guid = ship_p->collider.guid = GetNextGUID();
+	ship_p->guid = ship_p->collider.guid = AddToGUIDTable(SHIP, ship_p);
 	ship_p->facing = VECTOR2_UP;
 	ship_p->pos = 500.0f * VECTOR2_ONE;
 	ship_p->size = 30.0f * V2(1.0f, 1.2f);
@@ -127,15 +161,15 @@ static void EntitiesInit()
 	for (int i = 0; i < BULLETS_MAX; i++) 
 	{
 		bullet.collider.posRef = &bullets_p[i].pos;
-		bullet.guid = bullet.collider.guid = GetNextGUID();
-		bullets_p[i] = bullet; 
+		bullet.guid = bullet.collider.guid = AddToGUIDTable(BULLET, &bullets_p[i]);
+		bullets_p[i] = bullet;
 	}
 
 	ExhaustParticles* exhaustParticles_p = &entities.exhaustParticles[0];
 	ExhaustParticles exhaust; exhaust.radius = 5.0f; exhaust.pos = -10.0 * VECTOR2_ONE;
 	for (int i = 0; i < EXHAUST_PARTICLES_MAX; i++) 
 	{ 
-		exhaust.guid = GetNextGUID();
+		exhaust.guid = AddToGUIDTable(EXHAUST_PARTICLE, &exhaustParticles_p[i]);;
 		exhaustParticles_p[i] = exhaust; 
 	}
 
@@ -149,7 +183,7 @@ static void EntitiesInit()
 	for (int i = 0; i < ASTEROIDS_MAX; i++) 
 	{ 
 		asteroid.collider.posRef = &asteroids_p[i].pos;
-		asteroid.guid = asteroid.collider.guid = GetNextGUID();
+		asteroid.guid = asteroid.collider.guid = AddToGUIDTable(ASTEROID, &asteroids_p[i]);
 		asteroids_p[i] = asteroid; 
 	}
 
@@ -166,6 +200,9 @@ static void GameInit(int screenWidth, int screenHeight)
 
 	game.screenRect = RectNew(VECTOR2_ZERO, V2(screenWidth, screenHeight));
 
+	// first guid in the table is a dummy
+	GuidDescriptor dummyDesc = { ENTITIES_TYPE_MAX, NULL };
+	game.guidTable[0] = dummyDesc;
 }
 
 void GameStart(int screenWidth, int screenHeight)
@@ -177,7 +214,17 @@ void GameStart(int screenWidth, int screenHeight)
 								 /*Bullets*/	{0,       0,       1,},
 								 /*Asteroids*/	{1,       1,       0,}, };
 	Collsions_Init(collisionMatrix, 3);
-	//(*entities.ship.collider.callback)(&entities.asteroids[3].collider);
+
+	// sanity check for the guidTable
+	for (int i = 1; i < MAX_ENTITIES; i++)
+	{
+		void* data = game.guidTable[i].data; 
+		assert(data != NULL);						// should not be null
+		for (int j = i + 1; j < MAX_ENTITIES; j++)
+		{
+			assert(data != game.guidTable[j].data); // ... and should be different from others 
+		}
+	}
 }
 
 void GameUpdate()
@@ -323,7 +370,7 @@ static void SpawnAsteroids(int count, Asteroid* asteroids_p)
 		asteroid_p->rotSpeed = GetRandomSign()*GetRandomValue(45, 75);
 		asteroid_p->vel = GetRandomValue(ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED) * Normalize(destPoint - spawnPoint);
 		asteroid_p->edges = GetRandomValue(5, 9);
-		asteroid_p->collider.circle.radius = asteroid_p->radius;
+		asteroid_p->collider.circle.radius = 0.8f*asteroid_p->radius;
 		spawnIdx = (spawnIdx + 1) % 4;
 		destIdx = (destIdx + 1) % 4;
 	}
@@ -341,13 +388,14 @@ static void DestroyOldBullets(Bullet* bullets_p)
 		if (game.tCurr > bullet_p->tDestroy)
 		{
 			// Move it past bulletCount
-			Bullet* tmp = &bullets_p[i];
+			Bullet tmp = bullets_p[i];
 			bullets_p[i] = bullets_p[bulletCount - 1];
-			bullets_p[bulletCount - 1] = *tmp;
+			bullets_p[bulletCount - 1] = tmp;
 
-			// keep correct reference to pos
+			// keep correct ref to pos and guid
 			bullets_p[i].collider.posRef = &bullets_p[i].pos;
 			bullets_p[bulletCount - 1].collider.posRef = &bullets_p[bulletCount - 1].pos;
+			SwapGuidDescriptors(bullets_p[i].guid, bullets_p[bulletCount - 1].guid);
 
 			bulletCount--;
 		}
@@ -379,13 +427,14 @@ static void DestroyOffScreenAsteroids(Asteroid* asteroids_p)
 		if (offScreenAndMovingAway)
 		{
 			// Move it past asteroidCount
-			Asteroid* tmp = &asteroids_p[i];
+			Asteroid tmp = asteroids_p[i];
 			asteroids_p[i] = asteroids_p[asteroidCount - 1];
-			asteroids_p[asteroidCount - 1] = *tmp;
+			asteroids_p[asteroidCount - 1] = tmp;
 
-			// keep correct reference to pos
+			// keep correct ref to pos and guid
 			asteroids_p[i].collider.posRef = &asteroids_p[i].pos;
 			asteroids_p[asteroidCount - 1].collider.posRef = &asteroids_p[asteroidCount - 1].pos;
+			SwapGuidDescriptors(asteroids_p[i].guid, asteroids_p[asteroidCount - 1].guid);
 
 			asteroidCount--;
 		}
@@ -394,17 +443,30 @@ static void DestroyOffScreenAsteroids(Asteroid* asteroids_p)
 	entities.asteroidsCount = asteroidCount;
 }
 
-static void AsteroidCollision(Collider* collider)
+static void ShipCollision(Collider* collider, Collider* otherCollider)
 {
-	printf("Asteroid collision! collider.guidRef=%d\n", collider->guid);
+	printf("Ship collision! collider.guidRef=%d otherCollider.guidRef=%d\n", collider->guid, otherCollider->guid);
 }
 
-static void ShipCollision(Collider* collider)
+static void AsteroidCollision(Collider* collider, Collider* otherCollider)
 {
-	printf("Ship collision! collider.guidRef=%d\n", collider->guid);
+	printf("Asteroid collision! collider.guidRef=%d otherCollider.guidRef=%d\n", collider->guid, otherCollider->guid);
+	GuidDescriptor desc = game.guidTable[collider->guid];
+	GuidDescriptor otherDesc = game.guidTable[otherCollider->guid];
+
+	assert(desc.entityType == ASTEROID);
+	Asteroid* asteroid_p = (Asteroid*)desc.data;
+
+	switch (otherDesc.entityType)
+	{
+	case BULLET:
+		asteroid_p->rotSpeed = 0; // TODO
+		break;
+	InvalidDefaultCase;
+	}
 }
 
-static void BulletCollision(Collider* collider)
+static void BulletCollision(Collider* collider, Collider* otherCollider)
 {
-	printf("Bullet collision! collider.guidRef=%d\n", collider->guid);
+	printf("Bullet collision! collider.guidRef=%d otherCollider.guidRef=%d\n", collider->guid, otherCollider->guid);
 }

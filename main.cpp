@@ -16,7 +16,10 @@
 // [ ] Drawing layers
 // [ ] UI
 // [ ] Collision
-// [ ] Damage
+// [ ] Damage/Health
+// [ ] Better time step calculation
+// [ ] Collisions should happen after physics?
+// [ ] Difficulty progression
 
 #define WINDOW_SIZE			1000
 

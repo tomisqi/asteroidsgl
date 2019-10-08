@@ -28,7 +28,7 @@ struct Collider
 			Rect localRect;
 		} box;
 	};
-	void (*collisionCallback)(Collider*);
+	void (*collisionCallback)(Collider*, Collider*);
 };
 
 void Collsions_Init(int collisionMatrix[][3], int collisionLayers);
