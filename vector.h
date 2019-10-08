@@ -77,10 +77,14 @@ static inline float MagnitudeSq(Vector2 v)
 	return v.x*v.x + v.y*v.y;
 }
 
-
 static inline float Magnitude(Vector2 v)
 {
 	return sqrtf(MagnitudeSq(v));
+}
+
+static inline float Distance(Vector2 a, Vector2 b)
+{
+	return Magnitude(b - a);
 }
 
 static inline Vector2 Normalize(Vector2 v)

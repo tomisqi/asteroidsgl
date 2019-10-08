@@ -6,45 +6,53 @@
 #include "render.h"
 #include "rect.h"
 #include "debugrender.h"
+#include "collision.h"
 
 #define FIXED_DELTA_TIME		(1.0f/60.0f)
 
 struct CircleEntity
 {
-	float radius;
-
+	GUID guid;
 	Vector2 pos;
 	Vector2 vel;
+
+	float radius;
 };
 
 typedef CircleEntity ExhaustParticles;
 
 struct Ship
 {
-	Vector2 size;
-
+	GUID guid;
 	Vector2 pos;
-	Vector2 facing;
+	Collider collider;
+
 	Vector2 vel;
+	Vector2 facing;
 	int exhaustIdx;
+	Vector2 size;
 };
 
 struct Bullet
 {
-	float radius;
-
+	GUID guid;
 	Vector2 pos;
+	Collider collider;
+
+	float radius;
 	Vector2 vel;
 	double tDestroy;
 };
 
 struct Asteroid
 {
-	float radius;
-	int edges;
-
+	GUID guid;
 	Vector2 pos;
+	Collider collider;
+
+	float radius;
 	Vector2 vel;
+	int edges;
 	float rot;
 	float rotSpeed;
 };
@@ -76,28 +84,74 @@ struct Entities
 	ExhaustParticles exhaustParticles[EXHAUST_PARTICLES_MAX];
 };
 
+// Globals
 static Entities entities;
 static Game game;
+static GUID gguid = 0;
+
+static void SpawnAsteroids(int count, Asteroid* asteroids_p);
+static void DestroyOldBullets(Bullet* bullets_p);
+static void DestroyOffScreenAsteroids(Asteroid* asteroids_p);
+static void AsteroidCollision(Collider* collider);
+static void ShipCollision(Collider* collider);
+static void BulletCollision(Collider* collider);
+
+static GUID GetNextGUID()
+{
+	return gguid++;
+}
 
 static void EntitiesInit()
 {
+	entities = {0};
+
 	Ship* ship_p = &entities.ship;
+	ship_p->guid = ship_p->collider.guid = GetNextGUID();
 	ship_p->facing = VECTOR2_UP;
 	ship_p->pos = 500.0f * VECTOR2_ONE;
 	ship_p->size = 30.0f * V2(1.0f, 1.2f);
 	ship_p->vel = VECTOR2_ZERO;
+	ship_p->collider.colliderType = COLLIDER_BOX;
+	ship_p->collider.posRef = &ship_p->pos;
+	ship_p->collider.box.localRect = RectNew(ship_p->pos - 0.5f*ship_p->size, 0.5f*ship_p->size);
+	ship_p->collider.collisionCallback = &ShipCollision;
+	ship_p->collider.layer = 0;
 
 	Bullet* bullets_p = &entities.bullets[0];
-	Bullet defBullet; defBullet.radius = 8.0f; defBullet.pos = -10.0 * VECTOR2_ONE;
-	for (int i = 0; i < BULLETS_MAX; i++) bullets_p[i] = defBullet;
+	Bullet bullet; bullet.radius = 8.0f; bullet.pos = -10.0 * VECTOR2_ONE;
+	bullet.collider.colliderType = COLLIDER_CIRCLE;
+	bullet.collider.circle.localPos = VECTOR2_ZERO;
+	bullet.collider.circle.radius = bullet.radius;
+	bullet.collider.collisionCallback = &BulletCollision;
+	bullet.collider.layer = 1;
+	for (int i = 0; i < BULLETS_MAX; i++) 
+	{
+		bullet.collider.posRef = &bullets_p[i].pos;
+		bullet.guid = bullet.collider.guid = GetNextGUID();
+		bullets_p[i] = bullet; 
+	}
 
 	ExhaustParticles* exhaustParticles_p = &entities.exhaustParticles[0];
 	ExhaustParticles exhaust; exhaust.radius = 5.0f; exhaust.pos = -10.0 * VECTOR2_ONE;
-	for (int i = 0; i < EXHAUST_PARTICLES_MAX; i++) exhaustParticles_p[i] = exhaust;
+	for (int i = 0; i < EXHAUST_PARTICLES_MAX; i++) 
+	{ 
+		exhaust.guid = GetNextGUID();
+		exhaustParticles_p[i] = exhaust; 
+	}
 
 	Asteroid* asteroids_p = &entities.asteroids[0];
 	Asteroid asteroid; asteroid.radius = 7.0f; asteroid.pos = -10.0 * VECTOR2_ONE; asteroid.rot = 0.0f;
-	for (int i = 0; i < ASTEROIDS_MAX; i++) asteroids_p[i] = asteroid;
+	asteroid.collider.colliderType = COLLIDER_CIRCLE;
+	asteroid.collider.circle.localPos = VECTOR2_ZERO;
+	asteroid.collider.circle.radius = asteroid.radius;
+	asteroid.collider.collisionCallback = &AsteroidCollision;
+	asteroid.collider.layer = 2;
+	for (int i = 0; i < ASTEROIDS_MAX; i++) 
+	{ 
+		asteroid.collider.posRef = &asteroids_p[i].pos;
+		asteroid.guid = asteroid.collider.guid = GetNextGUID();
+		asteroids_p[i] = asteroid; 
+	}
 
 	entities.bulletCount = 0;
 	entities.asteroidsCount = 0;
@@ -114,14 +168,16 @@ static void GameInit(int screenWidth, int screenHeight)
 
 }
 
-static void SpawnAsteroids(int count, Asteroid* asteroids_p);
-static void DestroyOldBullets(Bullet* bullets_p);
-static void DestroyOffScreenAsteroids(Asteroid* asteroids_p);
-
 void GameStart(int screenWidth, int screenHeight)
 {
 	GameInit(screenWidth, screenHeight);
 	EntitiesInit();
+								 //              Ship     Bullets  Asteroids
+	int collisionMatrix[3][3] = {/*Ship*/		{0,       0,       1,},
+								 /*Bullets*/	{0,       0,       1,},
+								 /*Asteroids*/	{1,       1,       0,}, };
+	Collsions_Init(collisionMatrix, 3);
+	//(*entities.ship.collider.callback)(&entities.asteroids[3].collider);
 }
 
 void GameUpdate()
@@ -135,26 +191,29 @@ void GameUpdate()
 	float shipSpeed = 0.0f;
 	bool shoot = false;
 
-	/// Read input
-
+	/// --- Read input ---
 	if (GameInput_Button(BUTTON_RIGHT_ARROW)) shipRotSpeed = -5.0f;
 	if (GameInput_Button(BUTTON_LEFT_ARROW)) shipRotSpeed = 5.0f;
 	if (GameInput_Button(BUTTON_UP_ARROW)) shipSpeed = 5.0f;
 	if (GameInput_ButtonDown(BUTTON_SPACE)) shoot = true;
 
-	/// Destroying
+	/// --- Handle collisions ---
+	Collisions_DebugShowColliders();
+	Collisions_CheckCollisions();
+	Collsions_NewFrame();
+
+	/// --- Destroying ---
 	DestroyOldBullets(bullets_p);
 	DestroyOffScreenAsteroids(asteroids_p);
 
-	/// Spawning
-
+	/// --- Spawning ---
 	if ((game.tCurr - game.tLastSpawn) > game.spawnInterval)
 	{
 		SpawnAsteroids(1, asteroids_p);
 		game.tLastSpawn = game.tCurr;
 	}
 	
-	/// Physics
+	/// --- Physics ---
 
 	//Ship
 	ship_p->facing = Rotate(ship_p->facing, shipRotSpeed);
@@ -163,6 +222,7 @@ void GameUpdate()
 	ship_p->pos += FIXED_DELTA_TIME * ship_p->vel;
 	ship_p->pos.x = Wrapf(ship_p->pos.x, 0.0f, game.screenRect.size.x);
 	ship_p->pos.y = Wrapf(ship_p->pos.y, 0.0f, game.screenRect.size.y);
+	//Collisions_AddCollider(&ship_p->collider);
 
 	// Bullets
 	if (shoot)
@@ -180,6 +240,7 @@ void GameUpdate()
 		bullet_p->pos += FIXED_DELTA_TIME * bullet_p->vel;
 		bullet_p->pos.x = Wrapf(bullet_p->pos.x, 0.0f, game.screenRect.size.x);
 		bullet_p->pos.y = Wrapf(bullet_p->pos.y, 0.0f, game.screenRect.size.y);
+		Collisions_AddCollider(&bullet_p->collider);
 	}
 
 	// Exhaust particles
@@ -203,9 +264,10 @@ void GameUpdate()
 		Asteroid* asteroid_p = &asteroids_p[i];
 		asteroid_p->pos += FIXED_DELTA_TIME * asteroid_p->vel;
 		asteroid_p->rot += FIXED_DELTA_TIME * asteroid_p->rotSpeed;
+		Collisions_AddCollider(&asteroid_p->collider);
 	}
 
-	/// Drawing
+	/// --- Drawing --- 
 
 	// Ship
 	Vector2 point1 = ship_p->pos + ship_p->size.y*ship_p->facing;
@@ -261,6 +323,7 @@ static void SpawnAsteroids(int count, Asteroid* asteroids_p)
 		asteroid_p->rotSpeed = GetRandomSign()*GetRandomValue(45, 75);
 		asteroid_p->vel = GetRandomValue(ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED) * Normalize(destPoint - spawnPoint);
 		asteroid_p->edges = GetRandomValue(5, 9);
+		asteroid_p->collider.circle.radius = asteroid_p->radius;
 		spawnIdx = (spawnIdx + 1) % 4;
 		destIdx = (destIdx + 1) % 4;
 	}
@@ -282,6 +345,10 @@ static void DestroyOldBullets(Bullet* bullets_p)
 			bullets_p[i] = bullets_p[bulletCount - 1];
 			bullets_p[bulletCount - 1] = *tmp;
 
+			// keep correct reference to pos
+			bullets_p[i].collider.posRef = &bullets_p[i].pos;
+			bullets_p[bulletCount - 1].collider.posRef = &bullets_p[bulletCount - 1].pos;
+
 			bulletCount--;
 		}
 	}
@@ -291,8 +358,9 @@ static void DestroyOldBullets(Bullet* bullets_p)
 
 static void DestroyOffScreenAsteroids(Asteroid* asteroids_p)
 {
-	int asteroidCount = entities.asteroidsCount;
+	Vector2 screenCenter = RectCenter(game.screenRect);
 
+	int asteroidCount = entities.asteroidsCount;
 	for (int i = entities.asteroidsCount - 1; i >= 0; i--)
 	{
 		Asteroid* asteroid_p = &asteroids_p[i];
@@ -301,7 +369,7 @@ static void DestroyOffScreenAsteroids(Asteroid* asteroids_p)
 		if (!RectContains(game.screenRect, asteroid_p->pos))	
 		{
 			Vector2 velNorm = Normalize(asteroid_p->vel);
-			Vector2 toCenterNorm = Normalize(game.screenRect.center - asteroid_p->pos);
+			Vector2 toCenterNorm = Normalize(screenCenter - asteroid_p->pos);
 			if (Dot(velNorm, toCenterNorm) < 0.0f)
 			{			
 				offScreenAndMovingAway = true;
@@ -315,9 +383,28 @@ static void DestroyOffScreenAsteroids(Asteroid* asteroids_p)
 			asteroids_p[i] = asteroids_p[asteroidCount - 1];
 			asteroids_p[asteroidCount - 1] = *tmp;
 
+			// keep correct reference to pos
+			asteroids_p[i].collider.posRef = &asteroids_p[i].pos;
+			asteroids_p[asteroidCount - 1].collider.posRef = &asteroids_p[asteroidCount - 1].pos;
+
 			asteroidCount--;
 		}
 	}
 	assert(asteroidCount >= 0);
 	entities.asteroidsCount = asteroidCount;
+}
+
+static void AsteroidCollision(Collider* collider)
+{
+	printf("Asteroid collision! collider.guidRef=%d\n", collider->guid);
+}
+
+static void ShipCollision(Collider* collider)
+{
+	printf("Ship collision! collider.guidRef=%d\n", collider->guid);
+}
+
+static void BulletCollision(Collider* collider)
+{
+	printf("Bullet collision! collider.guidRef=%d\n", collider->guid);
 }

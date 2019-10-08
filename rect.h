@@ -5,13 +5,11 @@ struct Rect
 {
 	Vector2 pos;
 	Vector2 size;
-	Vector2 center;
 };
 
 static inline Rect RectNew(Vector2 pos, Vector2 size)
 {
-	Vector2 center = V2(pos.x + size.x / 2, pos.y + size.y / 2);
-	Rect rect = { pos, size, center};
+	Rect rect = { pos, size };
 	return rect;
 }
 
@@ -41,4 +39,10 @@ static inline Vector2 RectTopLeft(Rect rect)
 static inline Vector2 RectTopRight(Rect rect)
 {
 	return rect.pos + rect.size;
+}
+
+static inline Vector2 RectCenter(Rect rect)
+{
+	Vector2 center = V2(rect.pos.x + rect.size.x / 2, rect.pos.y + rect.size.y / 2);
+	return center;
 }

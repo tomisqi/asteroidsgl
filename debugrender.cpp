@@ -98,3 +98,26 @@ void Debug_DrawCross(Vector2 pos, Color color = COLOR_WHITE)
 	drawData.vertBuffer[2].vert = point3; drawData.vertBuffer[2].color = colorU32; drawData.idxBuffer[2] = elemIdx + 2;
 	drawData.vertBuffer[3].vert = point4; drawData.vertBuffer[3].color = colorU32; drawData.idxBuffer[3] = elemIdx + 3;
 }
+
+#define EDGES_COUNT 8
+void Debug_DrawCircle(Vector2 pos, float radius, Color color)
+{
+	ReservedDrawData drawData = PushVerts(&debugDrawList, 2*EDGES_COUNT);
+	DrawIdx elemIdx = drawData.idxBuffer[0];
+	assert(debugDrawList.vertCount <= debugDrawList.maxVertCount);
+
+	unsigned int colorU32 = ColorToU32(color);
+
+	float theta = 360.0f / EDGES_COUNT;
+	Vector2 v = radius * VECTOR2_RIGHT;
+	Vector2 point0 = pos + v;
+	for (int i = 0; i < EDGES_COUNT; i++)
+	{
+		v = Rotate(v, theta);
+		Vector2 point1 = pos + v;
+		drawData.vertBuffer[i * 2 + 0].vert = point0; drawData.vertBuffer[i * 2 + 0].color = colorU32; drawData.idxBuffer[i * 2 + 0] = elemIdx + 0;
+		drawData.vertBuffer[i * 2 + 1].vert = point1; drawData.vertBuffer[i * 2 + 1].color = colorU32; drawData.idxBuffer[i * 2 + 1] = elemIdx + 1;
+		point0 = point1;
+		elemIdx += 2;
+	}
+}

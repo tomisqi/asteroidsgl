@@ -112,6 +112,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\asteroids.cpp" />
+    <ClCompile Include="..\collision.cpp" />
     <ClCompile Include="..\debugrender.cpp" />
     <ClCompile Include="..\input.cpp" />
     <ClCompile Include="..\main.cpp" />
@@ -119,6 +120,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\asteroids.h" />
+    <ClInclude Include="..\collision.h" />
     <ClInclude Include="..\color.h" />
     <ClInclude Include="..\debugrender.h" />
     <ClInclude Include="..\input.h" />
