@@ -7,6 +7,7 @@
 #include "rect.h"
 #include "debugrender.h"
 #include "collision.h"
+#include "guid.h"
 
 #define FIXED_DELTA_TIME		(1.0f/60.0f)
 
@@ -14,12 +15,13 @@ struct CircleEntity
 {
 	GUID guid;
 	Vector2 pos;
-	Vector2 vel;
 
+	Vector2 vel;
 	float radius;
 };
 
 typedef CircleEntity ExhaustParticles;
+typedef CircleEntity AsteroidParticles;
 
 struct Ship
 {
@@ -83,12 +85,6 @@ struct Entities
 	ExhaustParticles exhaustParticles[EXHAUST_PARTICLES_MAX];
 };
 
-struct GuidDescriptor
-{
-	EntityType entityType;
-	void* data;
-};
-
 #define MAX_ENTITIES  (1/*ship*/ + BULLETS_MAX + ASTEROIDS_MAX + EXHAUST_PARTICLES_MAX + 1/*dummy*/)
 struct Game
 {
@@ -97,14 +93,12 @@ struct Game
 	double tCurr;
 	double tLastSpawn;
 	double spawnInterval;
-	GuidDescriptor guidTable[MAX_ENTITIES];
 };
 
 
 // Globals
 static Entities entities;
 static Game game;
-static GUID gguid = 1;
 
 static void SpawnAsteroids(int count, Asteroid* asteroids_p);
 static void DestroyOldBullets(Bullet* bullets_p);
@@ -113,34 +107,15 @@ static void ShipCollision(Collider* collider, Collider* otherCollider);
 static void AsteroidCollision(Collider* collider, Collider* otherCollider);
 static void BulletCollision(Collider* collider, Collider* otherCollider);
 
-static GUID GetNextGUID()
-{
-	return gguid++;
-}
-
-static GUID AddToGUIDTable(EntityType entityType, void* entityData)
-{
-	GuidDescriptor desc = { entityType, entityData};
-	GUID guid = GetNextGUID();
-	assert(guid < MAX_ENTITIES);
-	assert(game.guidTable[guid].data == NULL);//making sure we are not overwriting
-	game.guidTable[guid] = desc;
-	return guid;
-}
-
-static void SwapGuidDescriptors(GUID guid1, GUID guid2)
-{
-	GuidDescriptor tmp = game.guidTable[guid1];
-	game.guidTable[guid1] = game.guidTable[guid2];
-	game.guidTable[guid2] = tmp;
-}
 
 static void EntitiesInit()
 {
 	entities = {0};
 
+	Guid_Init(MAX_ENTITIES);
+
 	Ship* ship_p = &entities.ship;
-	ship_p->guid = ship_p->collider.guid = AddToGUIDTable(SHIP, ship_p);
+	ship_p->guid = ship_p->collider.guid = Guid_AddToGUIDTable(SHIP, ship_p);
 	ship_p->facing = VECTOR2_UP;
 	ship_p->pos = 500.0f * VECTOR2_ONE;
 	ship_p->size = 30.0f * V2(1.0f, 1.2f);
@@ -161,7 +136,7 @@ static void EntitiesInit()
 	for (int i = 0; i < BULLETS_MAX; i++) 
 	{
 		bullet.collider.posRef = &bullets_p[i].pos;
-		bullet.guid = bullet.collider.guid = AddToGUIDTable(BULLET, &bullets_p[i]);
+		bullet.guid = bullet.collider.guid = Guid_AddToGUIDTable(BULLET, &bullets_p[i]);
 		bullets_p[i] = bullet;
 	}
 
@@ -169,7 +144,7 @@ static void EntitiesInit()
 	ExhaustParticles exhaust; exhaust.radius = 5.0f; exhaust.pos = -10.0 * VECTOR2_ONE;
 	for (int i = 0; i < EXHAUST_PARTICLES_MAX; i++) 
 	{ 
-		exhaust.guid = AddToGUIDTable(EXHAUST_PARTICLE, &exhaustParticles_p[i]);;
+		exhaust.guid = Guid_AddToGUIDTable(EXHAUST_PARTICLE, &exhaustParticles_p[i]);;
 		exhaustParticles_p[i] = exhaust; 
 	}
 
@@ -183,12 +158,14 @@ static void EntitiesInit()
 	for (int i = 0; i < ASTEROIDS_MAX; i++) 
 	{ 
 		asteroid.collider.posRef = &asteroids_p[i].pos;
-		asteroid.guid = asteroid.collider.guid = AddToGUIDTable(ASTEROID, &asteroids_p[i]);
+		asteroid.guid = asteroid.collider.guid = Guid_AddToGUIDTable(ASTEROID, &asteroids_p[i]);
 		asteroids_p[i] = asteroid; 
 	}
 
 	entities.bulletCount = 0;
 	entities.asteroidsCount = 0;
+
+	Guid_CheckTable();
 }
 
 static void GameInit(int screenWidth, int screenHeight)
@@ -199,10 +176,6 @@ static void GameInit(int screenWidth, int screenHeight)
 	game.spawnInterval = 1.0f;
 
 	game.screenRect = RectNew(VECTOR2_ZERO, V2(screenWidth, screenHeight));
-
-	// first guid in the table is a dummy
-	GuidDescriptor dummyDesc = { ENTITIES_TYPE_MAX, NULL };
-	game.guidTable[0] = dummyDesc;
 }
 
 void GameStart(int screenWidth, int screenHeight)
@@ -214,17 +187,6 @@ void GameStart(int screenWidth, int screenHeight)
 								 /*Bullets*/	{0,       0,       1,},
 								 /*Asteroids*/	{1,       1,       0,}, };
 	Collsions_Init(collisionMatrix, 3);
-
-	// sanity check for the guidTable
-	for (int i = 1; i < MAX_ENTITIES; i++)
-	{
-		void* data = game.guidTable[i].data; 
-		assert(data != NULL);						// should not be null
-		for (int j = i + 1; j < MAX_ENTITIES; j++)
-		{
-			assert(data != game.guidTable[j].data); // ... and should be different from others 
-		}
-	}
 }
 
 void GameUpdate()
@@ -395,7 +357,7 @@ static void DestroyOldBullets(Bullet* bullets_p)
 			// keep correct ref to pos and guid
 			bullets_p[i].collider.posRef = &bullets_p[i].pos;
 			bullets_p[bulletCount - 1].collider.posRef = &bullets_p[bulletCount - 1].pos;
-			SwapGuidDescriptors(bullets_p[i].guid, bullets_p[bulletCount - 1].guid);
+			Guid_SwapGuidDescriptors(bullets_p[i].guid, bullets_p[bulletCount - 1].guid);
 
 			bulletCount--;
 		}
@@ -434,7 +396,7 @@ static void DestroyOffScreenAsteroids(Asteroid* asteroids_p)
 			// keep correct ref to pos and guid
 			asteroids_p[i].collider.posRef = &asteroids_p[i].pos;
 			asteroids_p[asteroidCount - 1].collider.posRef = &asteroids_p[asteroidCount - 1].pos;
-			SwapGuidDescriptors(asteroids_p[i].guid, asteroids_p[asteroidCount - 1].guid);
+			Guid_SwapGuidDescriptors(asteroids_p[i].guid, asteroids_p[asteroidCount - 1].guid);
 
 			asteroidCount--;
 		}
@@ -450,9 +412,9 @@ static void ShipCollision(Collider* collider, Collider* otherCollider)
 
 static void AsteroidCollision(Collider* collider, Collider* otherCollider)
 {
-	printf("Asteroid collision! collider.guidRef=%d otherCollider.guidRef=%d\n", collider->guid, otherCollider->guid);
-	GuidDescriptor desc = game.guidTable[collider->guid];
-	GuidDescriptor otherDesc = game.guidTable[otherCollider->guid];
+	//printf("Asteroid collision! collider.guidRef=%d otherCollider.guidRef=%d\n", collider->guid, otherCollider->guid);
+	GuidDescriptor desc = Guid_GetDescriptor(collider->guid);
+	GuidDescriptor otherDesc = Guid_GetDescriptor(otherCollider->guid);
 
 	assert(desc.entityType == ASTEROID);
 	Asteroid* asteroid_p = (Asteroid*)desc.data;
@@ -468,5 +430,5 @@ static void AsteroidCollision(Collider* collider, Collider* otherCollider)
 
 static void BulletCollision(Collider* collider, Collider* otherCollider)
 {
-	printf("Bullet collision! collider.guidRef=%d otherCollider.guidRef=%d\n", collider->guid, otherCollider->guid);
+	//printf("Bullet collision! collider.guidRef=%d otherCollider.guidRef=%d\n", collider->guid, otherCollider->guid);
 }

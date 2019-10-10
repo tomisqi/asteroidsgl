@@ -16,7 +16,7 @@ struct Collisions
 	int matrix[MAX_COLLISION_LAYERS][MAX_COLLISION_LAYERS];
 };
 
-Collisions collisions;
+static Collisions collisions;
 
 static bool CircleCircleCollision(Collider* collider1, Collider* collider2);
 

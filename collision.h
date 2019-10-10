@@ -2,6 +2,8 @@
 #include "asteroids.h"
 #include "vector.h"
 #include "rect.h"
+#include "guid.h";
+
 
 enum ColliderType
 {

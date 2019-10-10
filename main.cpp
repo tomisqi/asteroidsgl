@@ -15,11 +15,13 @@
 // [ ] Menus
 // [ ] Drawing layers
 // [ ] UI
-// [ ] Collision
+// [ ] Collision Box-Circle
 // [ ] Damage/Health
 // [ ] Better time step calculation
 // [ ] Collisions should happen after physics?
 // [ ] Difficulty progression
+// [ ] Destroy asteroiods
+// [ ] 
 
 #define WINDOW_SIZE			1000
 

@@ -114,6 +114,7 @@
     <ClCompile Include="..\asteroids.cpp" />
     <ClCompile Include="..\collision.cpp" />
     <ClCompile Include="..\debugrender.cpp" />
+    <ClCompile Include="..\guid.cpp" />
     <ClCompile Include="..\input.cpp" />
     <ClCompile Include="..\main.cpp" />
     <ClCompile Include="..\render.cpp" />
@@ -123,6 +124,7 @@
     <ClInclude Include="..\collision.h" />
     <ClInclude Include="..\color.h" />
     <ClInclude Include="..\debugrender.h" />
+    <ClInclude Include="..\guid.h" />
     <ClInclude Include="..\input.h" />
     <ClInclude Include="..\rect.h" />
     <ClInclude Include="..\render.h" />
