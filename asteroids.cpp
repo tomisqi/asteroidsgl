@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <assert.h>
+#include <string.h>
 #include "asteroids.h"
 #include "input.h"
 #include "utils.h"
@@ -11,17 +12,16 @@
 
 #define FIXED_DELTA_TIME		(1.0f/60.0f)
 
-struct CircleEntity
+struct Particle
 {
 	GUID guid;
 	Vector2 pos;
 
 	Vector2 vel;
 	float radius;
+	int circleEdges;
+	Color color;
 };
-
-typedef CircleEntity ExhaustParticles;
-typedef CircleEntity AsteroidParticles;
 
 struct Ship
 {
@@ -31,7 +31,6 @@ struct Ship
 
 	Vector2 vel;
 	Vector2 facing;
-	int exhaustIdx;
 	Vector2 size;
 };
 
@@ -59,16 +58,30 @@ struct Asteroid
 	float rotSpeed;
 };
 
-enum EntityType
+struct ParticleShare
 {
-	SHIP = 1,
-	BULLET,
-	EXHAUST_PARTICLE,
-	ASTEROID,
-	ENTITIES_TYPE_MAX,
+	int index;
+	int startIndex;
+	int count;	
 };
 
-#define EXHAUST_PARTICLES_MAX	32
+enum EntityType
+{
+	SHIP = 0,
+	BULLET,
+	ASTEROID,
+	PARTICLE,
+	//ENTITY_TYPE_MAX,
+};
+
+enum ParticleType
+{
+	EXHAUST_PARTICLE = 0,
+	ASTEROID_PARTICLE,
+	PARTICLE_TYPE_MAX,
+};
+
+#define PARTICLES_MAX			64
 #define BULLETS_MAX				16
 #define ASTEROIDS_MAX			64
 #define ASTEROID_MIN_SPEED		60
@@ -82,10 +95,13 @@ struct Entities
 	Asteroid asteroids[ASTEROIDS_MAX];
 	int asteroidsCount;
 
-	ExhaustParticles exhaustParticles[EXHAUST_PARTICLES_MAX];
+	// Particles
+	Particle particles[PARTICLES_MAX];
+	ParticleShare particleShare[PARTICLE_TYPE_MAX];
+	int particleCount;
 };
 
-#define MAX_ENTITIES  (1/*ship*/ + BULLETS_MAX + ASTEROIDS_MAX + EXHAUST_PARTICLES_MAX + 1/*dummy*/)
+#define MAX_ENTITIES  (1/*ship*/ + BULLETS_MAX + ASTEROIDS_MAX + PARTICLES_MAX + 1/*dummy*/)
 struct Game
 {
 	Rect screenRect;
@@ -100,6 +116,8 @@ struct Game
 static Entities entities;
 static Game game;
 
+static void ReserveParticles(Entities* entities_p, ParticleType particleType, int count);
+static Particle* GetParticle(Entities* entities_p, ParticleType particleType);
 static void SpawnAsteroids(int count, Asteroid* asteroids_p);
 static void DestroyOldBullets(Bullet* bullets_p);
 static void DestroyOffScreenAsteroids(Asteroid* asteroids_p);
@@ -108,11 +126,19 @@ static void AsteroidCollision(Collider* collider, Collider* otherCollider);
 static void BulletCollision(Collider* collider, Collider* otherCollider);
 
 
+static void InitParticles()
+{
+	memset(&entities.particleShare[0], 0, sizeof(entities.particleShare));
+	entities.particleCount = 0;
+}
+
 static void EntitiesInit()
 {
 	entities = {0};
 
 	Guid_Init(MAX_ENTITIES);
+
+	InitParticles();
 
 	Ship* ship_p = &entities.ship;
 	ship_p->guid = ship_p->collider.guid = Guid_AddToGUIDTable(SHIP, ship_p);
@@ -125,6 +151,7 @@ static void EntitiesInit()
 	ship_p->collider.box.localRect = RectNew(ship_p->pos - 0.5f*ship_p->size, 0.5f*ship_p->size);
 	ship_p->collider.collisionCallback = &ShipCollision;
 	ship_p->collider.layer = 0;
+	ReserveParticles(&entities, EXHAUST_PARTICLE, 32);
 
 	Bullet* bullets_p = &entities.bullets[0];
 	Bullet bullet; bullet.radius = 8.0f; bullet.pos = -10.0 * VECTOR2_ONE;
@@ -140,14 +167,6 @@ static void EntitiesInit()
 		bullets_p[i] = bullet;
 	}
 
-	ExhaustParticles* exhaustParticles_p = &entities.exhaustParticles[0];
-	ExhaustParticles exhaust; exhaust.radius = 5.0f; exhaust.pos = -10.0 * VECTOR2_ONE;
-	for (int i = 0; i < EXHAUST_PARTICLES_MAX; i++) 
-	{ 
-		exhaust.guid = Guid_AddToGUIDTable(EXHAUST_PARTICLE, &exhaustParticles_p[i]);;
-		exhaustParticles_p[i] = exhaust; 
-	}
-
 	Asteroid* asteroids_p = &entities.asteroids[0];
 	Asteroid asteroid; asteroid.radius = 7.0f; asteroid.pos = -10.0 * VECTOR2_ONE; asteroid.rot = 0.0f;
 	asteroid.collider.colliderType = COLLIDER_CIRCLE;
@@ -160,6 +179,15 @@ static void EntitiesInit()
 		asteroid.collider.posRef = &asteroids_p[i].pos;
 		asteroid.guid = asteroid.collider.guid = Guid_AddToGUIDTable(ASTEROID, &asteroids_p[i]);
 		asteroids_p[i] = asteroid; 
+	}
+	ReserveParticles(&entities, ASTEROID_PARTICLE, 32);
+
+	Particle* particles_p = &entities.particles[0];
+	Particle particle; particle.radius = 5.0f; particle.pos = -10.0 * VECTOR2_ONE; particle.circleEdges = 4;
+	for (int i = 0; i < PARTICLES_MAX; i++)
+	{
+		particle.guid = Guid_AddToGUIDTable(PARTICLE, &particles_p[i]);;
+		particles_p[i] = particle;
 	}
 
 	entities.bulletCount = 0;
@@ -193,8 +221,8 @@ void GameUpdate()
 {
 	Ship* ship_p = &entities.ship;
 	Bullet* bullets_p = &entities.bullets[0];
-	ExhaustParticles* exhaustParticles_p = &entities.exhaustParticles[0];
 	Asteroid* asteroids_p = &entities.asteroids[0];
+	Particle* particles_p = &entities.particles[0];
 
 	float shipRotSpeed = 0.0f;
 	float shipSpeed = 0.0f;
@@ -216,10 +244,32 @@ void GameUpdate()
 	DestroyOffScreenAsteroids(asteroids_p);
 
 	/// --- Spawning ---
+
+	// Asteroids
 	if ((game.tCurr - game.tLastSpawn) > game.spawnInterval)
 	{
 		SpawnAsteroids(1, asteroids_p);
 		game.tLastSpawn = game.tCurr;
+	}
+	// Bullets
+	if (shoot)
+	{
+		assert(entities.bulletCount < BULLETS_MAX);
+		Bullet* bullet_p = &bullets_p[entities.bulletCount];
+		bullet_p->vel = 500.0f * ship_p->facing + ship_p->vel;
+		bullet_p->pos = ship_p->pos + ship_p->size.y*ship_p->facing;
+		bullet_p->tDestroy = game.tCurr + BULLET_LIFETIME;
+		entities.bulletCount++;
+	}
+	// Exhaust particles
+	if (shipSpeed > 0.0f)
+	{
+		Particle* exhaustParticle_p = GetParticle(&entities, EXHAUST_PARTICLE);
+		exhaustParticle_p->vel = -50.0f * ship_p->facing;
+		exhaustParticle_p->vel = Rotate(exhaustParticle_p->vel, GetRandomValue(-45, 45));
+		exhaustParticle_p->pos = ship_p->pos;
+		exhaustParticle_p->color = COLOR_WHITE;
+		exhaustParticle_p->circleEdges = 4;
 	}
 	
 	/// --- Physics ---
@@ -233,16 +283,6 @@ void GameUpdate()
 	ship_p->pos.y = Wrapf(ship_p->pos.y, 0.0f, game.screenRect.size.y);
 	//Collisions_AddCollider(&ship_p->collider);
 
-	// Bullets
-	if (shoot)
-	{
-		assert(entities.bulletCount < BULLETS_MAX);
-		Bullet* bullet_p = &bullets_p[entities.bulletCount];
-		bullet_p->vel = 500.0f * ship_p->facing + ship_p->vel;
-		bullet_p->pos = ship_p->pos + ship_p->size.y*ship_p->facing;
-		bullet_p->tDestroy = game.tCurr + BULLET_LIFETIME;
-		entities.bulletCount++;
-	}
 	for (int i = 0; i < entities.bulletCount; i++)
 	{
 		Bullet* bullet_p = &bullets_p[i];
@@ -251,23 +291,11 @@ void GameUpdate()
 		bullet_p->pos.y = Wrapf(bullet_p->pos.y, 0.0f, game.screenRect.size.y);
 		Collisions_AddCollider(&bullet_p->collider);
 	}
-
-	// Exhaust particles
-	if (shipSpeed > 0.0f)
+	for (int i = 0; i < PARTICLES_MAX; i++)
 	{
-		ExhaustParticles* exhaustParticle_p = &exhaustParticles_p[ship_p->exhaustIdx];
-		exhaustParticle_p->vel = -50.0f * ship_p->facing;
-		exhaustParticle_p->vel = Rotate(exhaustParticle_p->vel, GetRandomValue(-45, 45));
-		exhaustParticle_p->pos = ship_p->pos;
-		ship_p->exhaustIdx = (ship_p->exhaustIdx + 1) % EXHAUST_PARTICLES_MAX;
+		Particle* particle_p = &particles_p[i];
+		particle_p->pos += FIXED_DELTA_TIME * particle_p->vel;
 	}
-	for (int i = 0; i < EXHAUST_PARTICLES_MAX; i++)
-	{
-		ExhaustParticles* exhaustParticle_p = &exhaustParticles_p[i];
-		exhaustParticle_p->pos += FIXED_DELTA_TIME * exhaustParticle_p->vel;
-	}
-
-	// Asteroids
 	for (int i = 0; i < entities.asteroidsCount; i++)
 	{
 		Asteroid* asteroid_p = &asteroids_p[i];
@@ -290,20 +318,18 @@ void GameUpdate()
 		Bullet* bullet_p = &bullets_p[i];
 		DrawCircle(bullet_p->pos, bullet_p->radius, COLOR_MAGENTA);
 	}
-
-	// ExhaustParticles
-	for (int i = 0; i < EXHAUST_PARTICLES_MAX; i++)
-	{
-		ExhaustParticles* exhaustParticle_p = &exhaustParticles_p[i];
-		DrawCircle(exhaustParticle_p->pos, exhaustParticle_p->radius, COLOR_WHITE, 4);
-	}
-
 	// Asteroids
 	for (int i = 0; i < entities.asteroidsCount; i++)
 	{
 		Asteroid* asteroid_p = &asteroids_p[i];
 		DrawCircleWStartAngle(asteroid_p->pos, asteroid_p->radius, Col(255, 119, 0), asteroid_p->edges, asteroid_p->rot);
 		//Debug_DrawVector(50.0f*Normalize(asteroid_p->vel), asteroid_p->pos, COLOR_GREEN);
+	}
+	// Particles
+	for (int i = 0; i < entities.particleCount; i++)
+	{
+		Particle* particle_p = &particles_p[i];
+		DrawCircle(particle_p->pos, particle_p->radius, particle_p->color, particle_p->circleEdges);
 	}
 
 	Debug_DrawVector(50.0f*ship_p->facing, ship_p->pos, COLOR_GREEN);
@@ -403,6 +429,22 @@ static void DestroyOffScreenAsteroids(Asteroid* asteroids_p)
 	}
 	assert(asteroidCount >= 0);
 	entities.asteroidsCount = asteroidCount;
+}
+
+static void ReserveParticles(Entities* entities_p, ParticleType particleType, int count)
+{
+	assert(entities.particleCount + count <= PARTICLES_MAX);
+	entities.particleShare[particleType].startIndex = entities.particleCount;
+	entities.particleShare[particleType].count = count;
+	entities.particleCount += count;
+}
+
+static Particle* GetParticle(Entities* entities_p, ParticleType particleType)
+{
+	ParticleShare* particleShare_p = &entities.particleShare[particleType];
+	Particle* paticle_p = &entities_p->particles[particleShare_p->startIndex + particleShare_p->index];
+	particleShare_p->index = (particleShare_p->index + 1) % particleShare_p->count;
+	return paticle_p;
 }
 
 static void ShipCollision(Collider* collider, Collider* otherCollider)

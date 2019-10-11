@@ -6,6 +6,7 @@
 struct GuidData
 {
 	GUID gguid; // global
+
 	GuidDescriptor* guidTable;
 	int maxEntities;
 };
