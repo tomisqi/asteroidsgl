@@ -23,6 +23,8 @@ struct Particle
 	Color color;
 };
 
+#define SHIP_SPEED 5.0f
+#define BOOST_SPEED_FACTOR 2.5f
 struct Ship
 {
 	GUID guid;
@@ -232,7 +234,8 @@ void GameUpdate()
 	/// --- Read input ---
 	if (GameInput_Button(BUTTON_RIGHT_ARROW)) shipRotSpeed = -5.0f;
 	if (GameInput_Button(BUTTON_LEFT_ARROW)) shipRotSpeed = 5.0f;
-	if (GameInput_Button(BUTTON_UP_ARROW)) shipSpeed = 5.0f;
+	if (GameInput_Button(BUTTON_UP_ARROW)) shipSpeed = SHIP_SPEED;
+	if (GameInput_Button(BUTTON_LSHIFT)) shipSpeed *= BOOST_SPEED_FACTOR;
 	if (GameInput_ButtonDown(BUTTON_SPACE)) shoot = true;
 
 	/// --- Handle collisions ---
@@ -265,7 +268,7 @@ void GameUpdate()
 		particle_p->vel = -50.0f * ship_p->facing;
 		particle_p->vel = Rotate(particle_p->vel, GetRandomValue(-45, 45));
 		particle_p->pos = ship_p->pos;
-		particle_p->color = COLOR_WHITE;
+		particle_p->color = shipSpeed > SHIP_SPEED ? COLOR_YELLOW : COLOR_WHITE;
 		particle_p->circleEdges = 4;
 	}
 	

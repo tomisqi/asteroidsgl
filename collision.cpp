@@ -85,22 +85,25 @@ void Collisions_CheckCollisions()
 		Collider* collider1 = collisions.colliders[i];
 		for (int j = i + 1; j < collisions.collidersCount; j++)
 		{
-			Collider* collider2 = collisions.colliders[j];
-			int collisionType = collider1->colliderType | collider2->colliderType;
+			Collider* collider2 = collisions.colliders[j];		
 			bool collisionAllowed = collisions.matrix[collider1->layer][collider2->layer];
-			switch (collisionType)
+			if (collisionAllowed)
 			{
-			case COLLISION_CIRLE_CIRCLE:
-				if (collisionAllowed && CircleCircleCollision(collider1, collider2))
+				int collisionType = collider1->colliderType | collider2->colliderType;
+				switch (collisionType)
 				{
-					// Add to Queue (dont call callback in here, since we usually destroy things at calllback and this is a loop)
-					AddToCallbackQueue(collider1->collisionCallback, collider1, collider2);
-					AddToCallbackQueue(collider2->collisionCallback, collider2, collider1);
+				case COLLISION_CIRLE_CIRCLE:
+					if (CircleCircleCollision(collider1, collider2))
+					{
+						// Add to Queue (dont call callback in here, since we usually destroy things at calllback and this is a loop)
+						AddToCallbackQueue(collider1->collisionCallback, collider1, collider2);
+						AddToCallbackQueue(collider2->collisionCallback, collider2, collider1);
+					}
+					break;
+				case COLLISION_BOX_BOX:
+				case COLLISION_CIRCLE_BOX: // falling through on purpose until implemented...
+					InvalidDefaultCase;
 				}
-				break;
-			case COLLISION_BOX_BOX:
-			case COLLISION_CIRCLE_BOX: // falling through on purpose until implemented...
-			InvalidDefaultCase;
 			}
 		}
 	}
