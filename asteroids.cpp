@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include <stdlib.h>
 #include "asteroids.h"
 #include "input.h"
 #include "utils.h"
@@ -235,6 +236,7 @@ void GameUpdate()
 	if (GameInput_Button(BUTTON_RIGHT_ARROW)) shipRotSpeed = -5.0f;
 	if (GameInput_Button(BUTTON_LEFT_ARROW)) shipRotSpeed = 5.0f;
 	if (GameInput_Button(BUTTON_UP_ARROW)) shipSpeed = SHIP_SPEED;
+	if (GameInput_Button(BUTTON_DOWN_ARROW)) shipSpeed = -SHIP_SPEED;
 	if (GameInput_Button(BUTTON_LSHIFT)) shipSpeed *= BOOST_SPEED_FACTOR;
 	if (GameInput_ButtonDown(BUTTON_C)) shoot = true;
 
@@ -262,13 +264,13 @@ void GameUpdate()
 		bullet_p->tDestroy = game.tCurr + BULLET_LIFETIME;
 		entities.bulletCount++;
 	}
-	if (shipSpeed > 0.0f)
+	if (fabs(shipSpeed) > 0.0f)
 	{
 		Particle* particle_p = GetParticle(&entities, EXHAUST_PARTICLE);
 		particle_p->vel = -50.0f * ship_p->facing;
 		particle_p->vel = Rotate(particle_p->vel, GetRandomValue(-45, 45));
 		particle_p->pos = ship_p->pos;
-		particle_p->color = shipSpeed > SHIP_SPEED ? COLOR_YELLOW : COLOR_WHITE;
+		particle_p->color = fabs(shipSpeed) > SHIP_SPEED ? COLOR_YELLOW : COLOR_WHITE;
 		particle_p->circleEdges = 4;
 	}
 	

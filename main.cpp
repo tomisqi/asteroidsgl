@@ -74,6 +74,7 @@ int main(void)
 	GameInput_BindButton(BUTTON_UP_ARROW, GLFW_KEY_UP);
 	GameInput_BindButton(BUTTON_LEFT_ARROW, GLFW_KEY_LEFT);
 	GameInput_BindButton(BUTTON_RIGHT_ARROW, GLFW_KEY_RIGHT);
+	GameInput_BindButton(BUTTON_DOWN_ARROW, GLFW_KEY_DOWN);
 	GameInput_BindButton(BUTTON_LSHIFT, GLFW_KEY_LEFT_SHIFT);
 	ButtonState buttonStates[MAX_BUTTONS];
 	
