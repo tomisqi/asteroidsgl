@@ -7,7 +7,7 @@
 #include "utils.h"
 
 static DrawList drawList;
-static long frameCounter;
+static unsigned long frameCounter;
 
 void Renderer_Init(int maxVertCount)
 {

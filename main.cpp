@@ -19,9 +19,8 @@
 // [ ] Damage/Health
 // [ ] Better time step calculation
 // [ ] Collisions should happen after physics?
-// [ ] Difficulty progression
-// [ ] Destroy asteroiods
-// [ ] 
+// [ ] Level
+// [ ] Spawn smaller asteroids on collision
 
 #define WINDOW_SIZE			1000
 
@@ -75,6 +74,7 @@ int main(void)
 	GameInput_BindButton(BUTTON_UP_ARROW, GLFW_KEY_UP);
 	GameInput_BindButton(BUTTON_LEFT_ARROW, GLFW_KEY_LEFT);
 	GameInput_BindButton(BUTTON_RIGHT_ARROW, GLFW_KEY_RIGHT);
+	ButtonState buttonStates[MAX_BUTTONS];
 	
 	Renderer_Init(2048);
 	DebugRenderer_Init(512);
@@ -82,8 +82,6 @@ int main(void)
 	glEnableClientState(GL_COLOR_ARRAY);
 
 	GameStart(WINDOW_SIZE, WINDOW_SIZE);
-
-	ButtonState buttonStates[MAX_BUTTONS];
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();

@@ -16,8 +16,22 @@ struct Collisions
 	int matrix[MAX_COLLISION_LAYERS][MAX_COLLISION_LAYERS];
 };
 
-static Collisions collisions;
+struct CallbackData
+{
+	void(*func)(Collider*, Collider*);
+	Collider* collider1;
+	Collider* collider2;
+};
 
+struct CollisionCallbackQueue
+{
+	CallbackData queue[MAX_COLLIDERS];
+	int count;
+};
+static Collisions collisions;
+static CollisionCallbackQueue callbackQueue;
+
+static void AddToCallbackQueue(void(*collisionCallback)(Collider*, Collider*), Collider* collider1, Collider* collider2);
 static bool CircleCircleCollision(Collider* collider1, Collider* collider2);
 
 void Collsions_Init(int collisionMatrix[][3], int collisionLayers)
@@ -25,6 +39,7 @@ void Collsions_Init(int collisionMatrix[][3], int collisionLayers)
 	assert(collisionLayers <= MAX_COLLISION_LAYERS);
 	collisions = { 0 };
 	collisions.collidersCount = 0;
+	callbackQueue.count = 0;
 	for (int i = 0; i < collisionLayers; i++)
 	{
 		for (int j = 0; j < collisionLayers; j++)
@@ -37,6 +52,7 @@ void Collsions_Init(int collisionMatrix[][3], int collisionLayers)
 void Collsions_NewFrame()
 {
 	collisions.collidersCount = 0;
+	callbackQueue.count = 0;
 }
 
 void Collisions_AddCollider(Collider* collider)
@@ -77,8 +93,9 @@ void Collisions_CheckCollisions()
 			case COLLISION_CIRLE_CIRCLE:
 				if (collisionAllowed && CircleCircleCollision(collider1, collider2))
 				{
-					(*collider1->collisionCallback)(collider1, collider2);
-					(*collider2->collisionCallback)(collider2, collider1);
+					// Add to Queue (dont call callback in here, since we usually destroy things at calllback and this is a loop)
+					AddToCallbackQueue(collider1->collisionCallback, collider1, collider2);
+					AddToCallbackQueue(collider2->collisionCallback, collider2, collider1);
 				}
 				break;
 			case COLLISION_BOX_BOX:
@@ -86,6 +103,14 @@ void Collisions_CheckCollisions()
 			InvalidDefaultCase;
 			}
 		}
+	}
+
+	// Call callback functions (if any)
+	for (int i = 0; i < callbackQueue.count; i++)
+	{
+		Collider* collider1 = callbackQueue.queue[i].collider1;
+		Collider* collider2 = callbackQueue.queue[i].collider2;
+		(*callbackQueue.queue[i].func)(collider1, collider2);
 	}
 }
 
@@ -98,4 +123,11 @@ static bool CircleCircleCollision(Collider* collider1, Collider* collider2)
 	float radius2 = collider2->circle.radius;
 
 	return Distance(pos1, pos2) < (radius1 + radius2);
+}
+
+static void AddToCallbackQueue(void(*collisionCallback)(Collider*, Collider*), Collider* collider1, Collider* collider2)
+{
+	CallbackData data = { collisionCallback , collider1, collider2};
+	callbackQueue.queue[callbackQueue.count++] = data;
+	assert(callbackQueue.count <= MAX_COLLIDERS);
 }
