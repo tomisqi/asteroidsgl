@@ -151,9 +151,12 @@ static void EntitiesInit()
 	ship_p->pos = 500.0f * VECTOR2_ONE;
 	ship_p->size = 30.0f * V2(1.0f, 1.2f);
 	ship_p->vel = VECTOR2_ZERO;
-	ship_p->collider.colliderType = COLLIDER_BOX;
+	//ship_p->collider.colliderType = COLLIDER_BOX;	
+	//ship_p->collider.box.localRect = RectNew(ship_p->pos - 0.5f*ship_p->size, 0.5f*ship_p->size);
 	ship_p->collider.posRef = &ship_p->pos;
-	ship_p->collider.box.localRect = RectNew(ship_p->pos - 0.5f*ship_p->size, 0.5f*ship_p->size);
+	ship_p->collider.colliderType = COLLIDER_CIRCLE;
+	ship_p->collider.circle.localPos = VECTOR2_ZERO;
+	ship_p->collider.circle.radius = 15.0f;
 	ship_p->collider.collisionCallback = &ShipCollision;
 	ship_p->collider.layer = 0;
 	ReserveParticles(&entities, EXHAUST_PARTICLE, 32);
@@ -242,7 +245,7 @@ void GameUpdate()
 	if (GameInput_ButtonDown(BUTTON_C)) shoot = true;
 
 	/// --- Handle collisions ---
-	Collisions_DebugShowColliders();
+	//Collisions_DebugShowColliders();
 	Collisions_CheckCollisions();
 	Collsions_NewFrame();
 
@@ -282,7 +285,7 @@ void GameUpdate()
 	ship_p->pos += FIXED_DELTA_TIME * ship_p->vel;
 	ship_p->pos.x = Wrapf(ship_p->pos.x, 0.0f, game.screenRect.size.x);
 	ship_p->pos.y = Wrapf(ship_p->pos.y, 0.0f, game.screenRect.size.y);
-	//Collisions_AddCollider(&ship_p->collider);
+	Collisions_AddCollider(&ship_p->collider);
 
 	for (int i = 0; i < entities.bulletCount; i++)
 	{
@@ -307,9 +310,13 @@ void GameUpdate()
 
 	/// --- Drawing 
 	Vector2 point1 = ship_p->pos + ship_p->size.y*ship_p->facing;
-	Vector2 point2 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, 90.0f);
+	Vector2 point2 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, +90.0f);
 	Vector2 point3 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, -90.0f);
+	Vector2 point4 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, +135.0f);
+	Vector2 point5 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, -135.0f);
 	DrawTriangle(point1, point2, point3, Col(20, 89, 255));
+	DrawTriangle(ship_p->pos, point2, point4, Col(20, 89, 255));
+	DrawTriangle(ship_p->pos, point3, point5, Col(20, 89, 255));
 
 	for (int i = 0; i < entities.bulletCount; i++)
 	{
@@ -328,7 +335,7 @@ void GameUpdate()
 		DrawCircle(particle_p->pos, particle_p->radius, particle_p->color, particle_p->circleEdges);
 	}
 
-	Debug_DrawVector(50.0f*ship_p->facing, ship_p->pos, COLOR_GREEN);
+	//Debug_DrawVector(50.0f*ship_p->facing, ship_p->pos, COLOR_GREEN);
 
 	game.tCurr += FIXED_DELTA_TIME;
 	game.frameCounter++;
@@ -458,12 +465,28 @@ static Particle* GetParticle(Entities* entities_p, ParticleType particleType)
 
 static void ShipCollision(Collider* collider, Collider* otherCollider)
 {
-	printf("Ship collision! collider.guidRef=%d otherCollider.guidRef=%d frame=%lu\n", collider->guid, otherCollider->guid, game.frameCounter);
+	//printf("Ship collision! collider.guidRef=%d otherCollider.guidRef=%d frame=%lu\n", collider->guid, otherCollider->guid, game.frameCounter);
+
+	GuidDescriptor desc = Guid_GetDescriptor(collider->guid);
+	GuidDescriptor otherDesc = Guid_GetDescriptor(otherCollider->guid);
+
+	assert(desc.entityType == SHIP);
+	Ship* ship_p = (Ship*)desc.data;
+
+	switch (otherDesc.entityType)
+	{
+	case ASTEROID:
+	{
+		ship_p->pos = 500.0f * VECTOR2_ONE;
+		ship_p->vel = VECTOR2_ZERO; // TODO
+	} break;
+	InvalidDefaultCase;
+	}
 }
 
 static void AsteroidCollision(Collider* collider, Collider* otherCollider)
 {
-	printf("Asteroid collision! collider.guidRef=%d otherCollider.guidRef=%d frame=%lu\n", collider->guid, otherCollider->guid, game.frameCounter);
+	//printf("Asteroid collision! collider.guidRef=%d otherCollider.guidRef=%d frame=%lu\n", collider->guid, otherCollider->guid, game.frameCounter);
 	GuidDescriptor desc = Guid_GetDescriptor(collider->guid);
 	GuidDescriptor otherDesc = Guid_GetDescriptor(otherCollider->guid);
 
@@ -506,13 +529,15 @@ static void AsteroidCollision(Collider* collider, Collider* otherCollider)
 
 		DestroyAsteroid(asteroid_p);
 	} break;
+	case SHIP:
+		break;
 	InvalidDefaultCase;
 	}
 }
 
 static void BulletCollision(Collider* collider, Collider* otherCollider)
 {
-	printf("Bullet collision! collider.guidRef=%d otherCollider.guidRef=%d frame=%lu\n", collider->guid, otherCollider->guid, game.frameCounter);
+	//printf("Bullet collision! collider.guidRef=%d otherCollider.guidRef=%d frame=%lu\n", collider->guid, otherCollider->guid, game.frameCounter);
 	GuidDescriptor desc = Guid_GetDescriptor(collider->guid);
 	GuidDescriptor otherDesc = Guid_GetDescriptor(otherCollider->guid);
 
