@@ -70,7 +70,7 @@ int main(void)
 	srand(time(NULL)); // Initialize random seed
 
 	GameInput_Init();
-	GameInput_BindButton(BUTTON_SPACE, GLFW_KEY_SPACE);
+	GameInput_BindButton(BUTTON_C, GLFW_KEY_C);
 	GameInput_BindButton(BUTTON_UP_ARROW, GLFW_KEY_UP);
 	GameInput_BindButton(BUTTON_LEFT_ARROW, GLFW_KEY_LEFT);
 	GameInput_BindButton(BUTTON_RIGHT_ARROW, GLFW_KEY_RIGHT);
@@ -78,7 +78,7 @@ int main(void)
 	ButtonState buttonStates[MAX_BUTTONS];
 	
 	Renderer_Init(2048);
-	DebugRenderer_Init(512);
+	DebugRenderer_Init(1024);
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_COLOR_ARRAY);
 

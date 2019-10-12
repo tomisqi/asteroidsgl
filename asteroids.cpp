@@ -121,7 +121,7 @@ static Game game;
 
 static void ReserveParticles(Entities* entities_p, ParticleType particleType, int count);
 static Particle* GetParticle(Entities* entities_p, ParticleType particleType);
-static void SpawnAsteroids(int count, Asteroid* asteroids_p);
+static void SpawnAsteroidsOffscreen(int count, Asteroid* asteroids_p);
 static void DestroyOldBullets(Bullet* bullets_p);
 static void DestroyOffScreenAsteroids(Asteroid* asteroids_p);
 static void ShipCollision(Collider* collider, Collider* otherCollider);
@@ -236,7 +236,7 @@ void GameUpdate()
 	if (GameInput_Button(BUTTON_LEFT_ARROW)) shipRotSpeed = 5.0f;
 	if (GameInput_Button(BUTTON_UP_ARROW)) shipSpeed = SHIP_SPEED;
 	if (GameInput_Button(BUTTON_LSHIFT)) shipSpeed *= BOOST_SPEED_FACTOR;
-	if (GameInput_ButtonDown(BUTTON_SPACE)) shoot = true;
+	if (GameInput_ButtonDown(BUTTON_C)) shoot = true;
 
 	/// --- Handle collisions ---
 	Collisions_DebugShowColliders();
@@ -250,7 +250,7 @@ void GameUpdate()
 	/// --- Spawning ---
 	if ((game.tCurr - game.tLastSpawn) > game.spawnInterval)
 	{
-		SpawnAsteroids(1, asteroids_p);
+		SpawnAsteroidsOffscreen(1, asteroids_p);
 		game.tLastSpawn = game.tCurr;
 	}
 	if (shoot)
@@ -331,7 +331,7 @@ void GameUpdate()
 	game.frameCounter++;
 }
 
-static void SpawnAsteroids(int count, Asteroid* asteroids_p)
+static void SpawnAsteroidsOffscreen(int count, Asteroid* asteroids_p)
 {
 	Rect screenRect = game.screenRect;
 	assert(entities.asteroidsCount + count <= ASTEROIDS_MAX);
@@ -374,6 +374,8 @@ static void DestroyBullet(Bullet* bullet_p)
 	Guid_SwapGuidDescriptors(bullet_p->guid, last_p->guid);
 
 	entities.bulletCount--;
+
+	assert(entities.bulletCount >= 0);
 }
 
 static void DestroyAsteroid(Asteroid* asteroid_p)
@@ -390,6 +392,8 @@ static void DestroyAsteroid(Asteroid* asteroid_p)
 	Guid_SwapGuidDescriptors(asteroid_p->guid, last_p->guid);
 
 	entities.asteroidsCount--;
+
+	assert(entities.asteroidsCount >= 0);
 }
 
 static void DestroyOldBullets(Bullet* bullets_p)
@@ -404,7 +408,6 @@ static void DestroyOldBullets(Bullet* bullets_p)
 			DestroyBullet(bullet_p);
 		}
 	}
-	assert(entities.bulletCount >= 0);
 }
 
 static void DestroyOffScreenAsteroids(Asteroid* asteroids_p)
@@ -431,7 +434,6 @@ static void DestroyOffScreenAsteroids(Asteroid* asteroids_p)
 			DestroyAsteroid(asteroid_p);
 		}
 	}
-	assert(entities.asteroidsCount >= 0);
 }
 
 static void ReserveParticles(Entities* entities_p, ParticleType particleType, int count)
@@ -480,6 +482,7 @@ static void AsteroidCollision(Collider* collider, Collider* otherCollider)
 			particle_p->circleEdges = 4;
 		}
 		DestroyAsteroid(asteroid_p);
+		DestroyBullet(bullet_p);
 	} break;
 	InvalidDefaultCase;
 	}
