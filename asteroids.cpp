@@ -89,6 +89,7 @@ enum ParticleType
 #define ASTEROIDS_MAX			64
 #define ASTEROID_MIN_SPEED		60
 #define ASTEROID_MAX_SPEED		ASTEROID_MIN_SPEED + 40
+#define ASTEROID_MIN_SIZE		20
 #define BULLET_LIFETIME			1
 struct Entities
 {
@@ -347,10 +348,11 @@ static void SpawnAsteroidsOffscreen(int count, Asteroid* asteroids_p)
 	for (int i = entities.asteroidsCount; i < entities.asteroidsCount + count; i++)
 	{
 		Asteroid* asteroid_p = &asteroids_p[i];
+		//Vector2 spawnPoint = 0.5f*game.screenRect.size + 30.0f * VECTOR2_UP;
 		Vector2 spawnPoint = spawnPoints[spawnIdx];
 		Vector2 destPoint = spawnPoints[destIdx];
 		asteroid_p->pos = spawnPoint;
-		asteroid_p->radius = GetRandomValue(20, 70);
+		asteroid_p->radius = GetRandomValue(ASTEROID_MIN_SIZE, 80);
 		asteroid_p->rotSpeed = GetRandomSign()*GetRandomValue(45, 75);
 		asteroid_p->vel = GetRandomValue(ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED) * Normalize(destPoint - spawnPoint);
 		asteroid_p->edges = GetRandomValue(5, 9);
@@ -364,6 +366,8 @@ static void SpawnAsteroidsOffscreen(int count, Asteroid* asteroids_p)
 
 static void DestroyBullet(Bullet* bullet_p)
 {
+	assert(entities.bulletCount >= 0);
+
 	// Move it past bulletCount
 	Bullet* last_p = &entities.bullets[entities.bulletCount - 1];
 	Bullet tmp = *bullet_p;
@@ -376,12 +380,12 @@ static void DestroyBullet(Bullet* bullet_p)
 	Guid_SwapGuidDescriptors(bullet_p->guid, last_p->guid);
 
 	entities.bulletCount--;
-
-	assert(entities.bulletCount >= 0);
 }
 
 static void DestroyAsteroid(Asteroid* asteroid_p)
 {
+	assert(entities.asteroidsCount >= 0);
+
 	// Move it past bulletCount
 	Asteroid* last_p = &entities.asteroids[entities.asteroidsCount - 1];
 	Asteroid tmp = *asteroid_p;
@@ -394,8 +398,6 @@ static void DestroyAsteroid(Asteroid* asteroid_p)
 	Guid_SwapGuidDescriptors(asteroid_p->guid, last_p->guid);
 
 	entities.asteroidsCount--;
-
-	assert(entities.asteroidsCount >= 0);
 }
 
 static void DestroyOldBullets(Bullet* bullets_p)
@@ -461,7 +463,7 @@ static void ShipCollision(Collider* collider, Collider* otherCollider)
 
 static void AsteroidCollision(Collider* collider, Collider* otherCollider)
 {
-	//printf("Asteroid collision! collider.guidRef=%d otherCollider.guidRef=%d frame=%lu\n", collider->guid, otherCollider->guid, game.frameCounter);
+	printf("Asteroid collision! collider.guidRef=%d otherCollider.guidRef=%d frame=%lu\n", collider->guid, otherCollider->guid, game.frameCounter);
 	GuidDescriptor desc = Guid_GetDescriptor(collider->guid);
 	GuidDescriptor otherDesc = Guid_GetDescriptor(otherCollider->guid);
 
@@ -473,18 +475,36 @@ static void AsteroidCollision(Collider* collider, Collider* otherCollider)
 	case BULLET:
 	{
 		Bullet* bullet_p = (Bullet*)otherDesc.data;
+		Vector2 normBulletVel = Normalize(bullet_p->vel);
 		int particleCount = GetRandomValue(6, 8);
 		for (int i = 0; i < particleCount; i++)
 		{
 			Particle* particle_p = GetParticle(&entities, ASTEROID_PARTICLE);
-			particle_p->vel = 500.0f * Normalize(bullet_p->vel);
-			particle_p->vel = Rotate(particle_p->vel, GetRandomValue(-90, 90));
+			//particle_p->vel = 500.0f * normBulletVel;
+			particle_p->vel = 500.0f * Rotate(VECTOR2_RIGHT, GetRandomValue(-180, 180));
 			particle_p->pos = asteroid_p->pos;
 			particle_p->color =  Col(255, 119, 0);
 			particle_p->circleEdges = 4;
 		}
+
+		// Spawn smaller ones
+		int count = (asteroid_p->radius / ASTEROID_MIN_SIZE);
+		if (count > 1)
+		{
+			for (int i = entities.asteroidsCount; i < entities.asteroidsCount + count; i++)
+			{
+				Asteroid* childAsteroid_p = &entities.asteroids[i];
+				childAsteroid_p->pos = asteroid_p->pos;
+				childAsteroid_p->radius = GetRandomValue(ASTEROID_MIN_SIZE, asteroid_p->radius);
+				childAsteroid_p->rotSpeed = GetRandomSign()*GetRandomValue(45, 75);
+				childAsteroid_p->vel = GetRandomValue(ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED) * Rotate(normBulletVel, GetRandomValue(-90, 90));
+				childAsteroid_p->edges = GetRandomValue(5, 9);
+				childAsteroid_p->collider.circle.radius = 0.8f*childAsteroid_p->radius;
+			}
+			entities.asteroidsCount += count;
+		}
+
 		DestroyAsteroid(asteroid_p);
-		DestroyBullet(bullet_p);
 	} break;
 	InvalidDefaultCase;
 	}
@@ -492,5 +512,19 @@ static void AsteroidCollision(Collider* collider, Collider* otherCollider)
 
 static void BulletCollision(Collider* collider, Collider* otherCollider)
 {
-	//printf("Bullet collision! collider.guidRef=%d otherCollider.guidRef=%d frame=%lu\n", collider->guid, otherCollider->guid, game.frameCounter);
+	printf("Bullet collision! collider.guidRef=%d otherCollider.guidRef=%d frame=%lu\n", collider->guid, otherCollider->guid, game.frameCounter);
+	GuidDescriptor desc = Guid_GetDescriptor(collider->guid);
+	GuidDescriptor otherDesc = Guid_GetDescriptor(otherCollider->guid);
+
+	assert(desc.entityType == BULLET);
+	Bullet* bullet_p = (Bullet*)desc.data;
+
+	switch (otherDesc.entityType)
+	{
+	case ASTEROID:
+	{
+		DestroyBullet(bullet_p);
+	} break;
+	InvalidDefaultCase;
+	}
 }
