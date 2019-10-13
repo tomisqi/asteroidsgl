@@ -16,11 +16,13 @@
 // [ ] Drawing layers
 // [ ] UI
 // [ ] Collision Box-Circle
-// [ ] Damage/Health
+// [ ] Ship Damage/Health
 // [ ] Better time step calculation
 // [ ] Collisions should happen after physics?
 // [ ] Level
 // [ ] Spawn smaller asteroids on collision
+// [ ] Respawn where no asteroids
+// [ ] Asteroids colors
 
 #define WINDOW_SIZE			1000
 

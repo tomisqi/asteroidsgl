@@ -21,7 +21,7 @@ struct Particle
 	Vector2 vel;
 	float radius;
 	int circleEdges;
-	Color color;
+	Color32 color32;
 };
 
 #define SHIP_SPEED 5.0f
@@ -59,6 +59,7 @@ struct Asteroid
 	int edges;
 	float rot;
 	float rotSpeed;
+	Color32 color32;
 };
 
 struct ParticleShare
@@ -218,11 +219,11 @@ void GameStart(int screenWidth, int screenHeight)
 {
 	GameInit(screenWidth, screenHeight);
 	EntitiesInit();
-								 //              Ship     Bullets  Asteroids
+											  // Ship     Bullets  Asteroids
 	int collisionMatrix[3][3] = {/*Ship*/		{0,       0,       1,},
 								 /*Bullets*/	{0,       0,       1,},
 								 /*Asteroids*/	{1,       1,       0,}, };
-	Collsions_Init(collisionMatrix, 3);
+	Collisions_Init(collisionMatrix, 3);
 }
 
 void GameUpdate()
@@ -237,17 +238,17 @@ void GameUpdate()
 	bool shoot = false;
 
 	/// --- Read input ---
-	if (GameInput_Button(BUTTON_RIGHT_ARROW)) shipRotSpeed = -5.0f;
-	if (GameInput_Button(BUTTON_LEFT_ARROW)) shipRotSpeed = 5.0f;
-	if (GameInput_Button(BUTTON_UP_ARROW)) shipSpeed = SHIP_SPEED;
-	if (GameInput_Button(BUTTON_DOWN_ARROW)) shipSpeed = -SHIP_SPEED;
-	if (GameInput_Button(BUTTON_LSHIFT)) shipSpeed *= BOOST_SPEED_FACTOR;
-	if (GameInput_ButtonDown(BUTTON_C)) shoot = true;
+	if (GameInput_Button(BUTTON_RIGHT_ARROW))	shipRotSpeed = -5.0f;
+	if (GameInput_Button(BUTTON_LEFT_ARROW))	shipRotSpeed = 5.0f;
+	if (GameInput_Button(BUTTON_UP_ARROW))		shipSpeed = SHIP_SPEED;
+	if (GameInput_Button(BUTTON_DOWN_ARROW))	shipSpeed = -SHIP_SPEED;
+	if (GameInput_Button(BUTTON_LSHIFT))		shipSpeed *= BOOST_SPEED_FACTOR;
+	if (GameInput_ButtonDown(BUTTON_C))			shoot = true;
 
 	/// --- Handle collisions ---
-	Collisions_DebugShowColliders();
+	//Collisions_DebugShowColliders();
 	Collisions_CheckCollisions();
-	Collsions_NewFrame();
+	Collisions_NewFrame();
 
 	/// --- Destroying ---
 	DestroyOldBullets(bullets_p);
@@ -274,7 +275,7 @@ void GameUpdate()
 		particle_p->vel = -50.0f * ship_p->facing;
 		particle_p->vel = Rotate(particle_p->vel, GetRandomValue(-45, 45));
 		particle_p->pos = ship_p->pos;
-		particle_p->color = fabs(shipSpeed) > SHIP_SPEED ? COLOR_YELLOW : COLOR_WHITE;
+		particle_p->color32 = fabs(shipSpeed) > SHIP_SPEED ? COL32_YELLOW : COL32_WHITE;
 		particle_p->circleEdges = 4;
 	}
 	
@@ -314,26 +315,26 @@ void GameUpdate()
 	Vector2 point3 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, -90.0f);
 	Vector2 point4 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, +135.0f);
 	Vector2 point5 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, -135.0f);
-	DrawTriangle(point1, point2, point3, Col(20, 89, 255));
-	DrawTriangle(ship_p->pos, point2, point4, Col(20, 89, 255));
-	DrawTriangle(ship_p->pos, point3, point5, Col(20, 89, 255));
+	DrawTriangle(point1, point2, point3, COL32(20, 89, 255));
+	DrawTriangle(ship_p->pos, point2, point4, COL32(20, 89, 255));
+	DrawTriangle(ship_p->pos, point3, point5, COL32(20, 89, 255));
 
 
 	for (int i = 0; i < entities.bulletCount; i++)
 	{
 		Bullet* bullet_p = &bullets_p[i];
-		DrawCircle(bullet_p->pos, bullet_p->radius, COLOR_MAGENTA);
+		DrawCircle(bullet_p->pos, bullet_p->radius, COL32_MAGENTA);
 	}
 	for (int i = 0; i < entities.asteroidsCount; i++)
 	{
 		Asteroid* asteroid_p = &asteroids_p[i];
-		DrawCircleWStartAngle(asteroid_p->pos, asteroid_p->radius, Col(255, 119, 0), asteroid_p->edges, asteroid_p->rot);
+		DrawCircleWStartAngle(asteroid_p->pos, asteroid_p->radius, COL32_BLUE/*asteroid_p->colorU32*/, asteroid_p->edges, asteroid_p->rot);
 		//Debug_DrawVector(50.0f*Normalize(asteroid_p->vel), asteroid_p->pos, COLOR_GREEN);
 	}
 	for (int i = 0; i < entities.particleCount; i++)
 	{
 		Particle* particle_p = &particles_p[i];
-		DrawCircle(particle_p->pos, particle_p->radius, particle_p->color, particle_p->circleEdges);
+		DrawCircle(particle_p->pos, particle_p->radius, particle_p->color32, particle_p->circleEdges);
 	}
 
 	//Debug_DrawVector(50.0f*ship_p->facing, ship_p->pos, COLOR_GREEN);
@@ -505,7 +506,7 @@ static void AsteroidCollision(Collider* collider, Collider* otherCollider)
 			//particle_p->vel = 500.0f * normBulletVel;
 			particle_p->vel = 100.0f * Rotate(VECTOR2_RIGHT, GetRandomValue(-180, 180));
 			particle_p->pos = asteroid_p->pos;
-			particle_p->color =  Col(255, 119, 0);
+			particle_p->color32 =  COL32(255, 119, 0);
 			particle_p->circleEdges = 4;
 		}
 

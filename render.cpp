@@ -30,17 +30,15 @@ void Renderer_NewFrame()
 void Renderer_Render()
 {
 	glVertexPointer(2, GL_FLOAT, sizeof(DrawVert), (uint8_t*)drawList.vertBuffer + OFFSET_OF(DrawVert, vert));
-	glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(DrawVert), (uint8_t*)drawList.vertBuffer + OFFSET_OF(DrawVert, color));
+	glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(DrawVert), (uint8_t*)drawList.vertBuffer + OFFSET_OF(DrawVert, color32));
 	glDrawElements(GL_TRIANGLES, drawList.vertCount, GL_UNSIGNED_SHORT, drawList.idxBuffer);
 }
 
-void DrawCircleWStartAngle(Vector2 pos, float radius, Color color, int edgeCount, float startAngle)
+void DrawCircleWStartAngle(Vector2 pos, float radius, Color32 color32, int edgeCount, float startAngle)
 {
 	ReservedDrawData drawData = PushVerts(&drawList, edgeCount * 3);
 	DrawIdx elemIdx = drawData.idxBuffer[0];
 	assert(drawList.vertCount <= drawList.maxVertCount);
-
-	unsigned int colorU32 = ColorToU32(color);
 
 	float theta = 360.0f / edgeCount;
 	Vector2 point0 = pos;
@@ -51,31 +49,29 @@ void DrawCircleWStartAngle(Vector2 pos, float radius, Color color, int edgeCount
 		v = Rotate(v, theta);
 		Vector2 point2 = point0 + v;
 
-		drawData.vertBuffer[i * 3 + 0].vert = point0; drawData.vertBuffer[i * 3 + 0].color = colorU32; drawData.idxBuffer[i * 3 + 0] = elemIdx + 0;
-		drawData.vertBuffer[i * 3 + 1].vert = point1; drawData.vertBuffer[i * 3 + 1].color = colorU32; drawData.idxBuffer[i * 3 + 1] = elemIdx + 1;
-		drawData.vertBuffer[i * 3 + 2].vert = point2; drawData.vertBuffer[i * 3 + 2].color = colorU32; drawData.idxBuffer[i * 3 + 2] = elemIdx + 2;
+		drawData.vertBuffer[i * 3 + 0].vert = point0; drawData.vertBuffer[i * 3 + 0].color32 = color32; drawData.idxBuffer[i * 3 + 0] = elemIdx + 0;
+		drawData.vertBuffer[i * 3 + 1].vert = point1; drawData.vertBuffer[i * 3 + 1].color32 = color32; drawData.idxBuffer[i * 3 + 1] = elemIdx + 1;
+		drawData.vertBuffer[i * 3 + 2].vert = point2; drawData.vertBuffer[i * 3 + 2].color32 = color32; drawData.idxBuffer[i * 3 + 2] = elemIdx + 2;
 		elemIdx += 3;
 
 		point1 = point2;
 	}
 }
 
-void DrawCircle(Vector2 pos, float radius, Color color, int edgeCount)
+void DrawCircle(Vector2 pos, float radius, Color32 color32, int edgeCount)
 {
-	DrawCircleWStartAngle(pos, radius, color, edgeCount, 0.0f);
+	DrawCircleWStartAngle(pos, radius, color32, edgeCount, 0.0f);
 }
 
-void DrawTriangle(Vector2 point1, Vector2 point2, Vector2 point3, Color color)
+void DrawTriangle(Vector2 point1, Vector2 point2, Vector2 point3, Color32 color32)
 {
 	ReservedDrawData drawData = PushVerts(&drawList, 3);
 	DrawIdx elemIdx = drawData.idxBuffer[0];
 	assert(drawList.vertCount <= drawList.maxVertCount);
 
-	unsigned int colorU32 = ColorToU32(color);
-
-	drawData.vertBuffer[0].vert = point1; drawData.vertBuffer[0].color = colorU32; drawData.idxBuffer[0] = elemIdx + 0;
-	drawData.vertBuffer[1].vert = point2; drawData.vertBuffer[1].color = colorU32; drawData.idxBuffer[1] = elemIdx + 1;
-	drawData.vertBuffer[2].vert = point3; drawData.vertBuffer[2].color = colorU32; drawData.idxBuffer[2] = elemIdx + 2;
+	drawData.vertBuffer[0].vert = point1; drawData.vertBuffer[0].color32 = color32; drawData.idxBuffer[0] = elemIdx + 0;
+	drawData.vertBuffer[1].vert = point2; drawData.vertBuffer[1].color32 = color32; drawData.idxBuffer[1] = elemIdx + 1;
+	drawData.vertBuffer[2].vert = point3; drawData.vertBuffer[2].color32 = color32; drawData.idxBuffer[2] = elemIdx + 2;
 }
 
 //#define TIP_LENGTH 10.0f

@@ -2,13 +2,13 @@
 #include "asteroids.h"
 #include "vector.h"
 #include "rect.h"
-#include "guid.h";
+#include "guid.h"
 
 
 enum ColliderType
 {
-	COLLIDER_CIRCLE = 0x1,
-	COLLIDER_BOX = 0x2,
+	COLLIDER_CIRCLE =	0x1 << 0,
+	COLLIDER_BOX =		0x1 << 1,
 };
 
 
@@ -33,8 +33,8 @@ struct Collider
 	void (*collisionCallback)(Collider*, Collider*);
 };
 
-void Collsions_Init(int collisionMatrix[][3], int collisionLayers);
-void Collsions_NewFrame();
+void Collisions_Init(int collisionMatrix[][3], int collisionLayers);
+void Collisions_NewFrame();
 void Collisions_AddCollider(Collider* collider);
 void Collisions_CheckCollisions();
 void Collisions_DebugShowColliders();

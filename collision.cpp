@@ -46,7 +46,7 @@ static bool InCallbackQueue(ColliderData collider);
 static void AddToCallbackQueue(ColliderData collider1, ColliderData collider2);
 static bool CircleCircleCollision(Collider* collider1, Collider* collider2);
 
-void Collsions_Init(int collisionMatrix[][3], int collisionLayers)
+void Collisions_Init(int collisionMatrix[][3], int collisionLayers)
 {
 	assert(collisionLayers <= MAX_COLLISION_LAYERS);
 	collisions = { 0 };
@@ -61,7 +61,7 @@ void Collsions_Init(int collisionMatrix[][3], int collisionLayers)
 	collisionCallback.count = 0;
 }
 
-void Collsions_NewFrame()
+void Collisions_NewFrame()
 {
 	collisions.gcID = 0;
 	collisions.collidersCount = 0;
@@ -88,7 +88,7 @@ void Collisions_DebugShowColliders()
 		switch (collider->colliderType)
 		{
 		case COLLIDER_CIRCLE:
-			Debug_DrawCircle(*collider->posRef + collider->circle.localPos, collider->circle.radius, COLOR_GREEN);
+			Debug_DrawCircle(*collider->posRef + collider->circle.localPos, collider->circle.radius, COL32_GREEN);
 			break;
 		case COLLIDER_BOX:  // falling through on purpose until implemented...
 		InvalidDefaultCase;
@@ -120,7 +120,7 @@ void Collisions_CheckCollisions()
 					break;
 				case COLLISION_BOX_BOX:
 				case COLLISION_CIRCLE_BOX: // falling through on purpose until implemented...
-					InvalidDefaultCase;
+				InvalidDefaultCase;
 				}
 			}
 		}

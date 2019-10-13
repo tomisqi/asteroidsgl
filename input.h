@@ -4,7 +4,7 @@
 
 enum ButtonState
 {
-	RELEASED,
+	RELEASED = 0,
 	PRESSED,
 };
 
@@ -33,13 +33,8 @@ struct GameInput
 
 
 bool GameInput_ButtonDown(ButtonVal buttonVal);
-
 bool GameInput_Button(ButtonVal buttonVal);
-
 void GameInput_Init();
-
 void GameInput_NewFrame(ButtonState newButtonStates[]);
-
 void GameInput_BindButton(ButtonVal buttonVal, int platformVal);
-
 int GameInput_GetBinding(int buttonIdx);
