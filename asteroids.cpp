@@ -245,7 +245,7 @@ void GameUpdate()
 	if (GameInput_ButtonDown(BUTTON_C)) shoot = true;
 
 	/// --- Handle collisions ---
-	//Collisions_DebugShowColliders();
+	Collisions_DebugShowColliders();
 	Collisions_CheckCollisions();
 	Collsions_NewFrame();
 
@@ -317,6 +317,7 @@ void GameUpdate()
 	DrawTriangle(point1, point2, point3, Col(20, 89, 255));
 	DrawTriangle(ship_p->pos, point2, point4, Col(20, 89, 255));
 	DrawTriangle(ship_p->pos, point3, point5, Col(20, 89, 255));
+
 
 	for (int i = 0; i < entities.bulletCount; i++)
 	{
@@ -497,14 +498,12 @@ static void AsteroidCollision(Collider* collider, Collider* otherCollider)
 	{
 	case BULLET:
 	{
-		Bullet* bullet_p = (Bullet*)otherDesc.data;
-		Vector2 normBulletVel = Normalize(bullet_p->vel);
 		int particleCount = GetRandomValue(6, 8);
 		for (int i = 0; i < particleCount; i++)
 		{
 			Particle* particle_p = GetParticle(&entities, ASTEROID_PARTICLE);
 			//particle_p->vel = 500.0f * normBulletVel;
-			particle_p->vel = 500.0f * Rotate(VECTOR2_RIGHT, GetRandomValue(-180, 180));
+			particle_p->vel = 100.0f * Rotate(VECTOR2_RIGHT, GetRandomValue(-180, 180));
 			particle_p->pos = asteroid_p->pos;
 			particle_p->color =  Col(255, 119, 0);
 			particle_p->circleEdges = 4;
@@ -520,7 +519,7 @@ static void AsteroidCollision(Collider* collider, Collider* otherCollider)
 				childAsteroid_p->pos = asteroid_p->pos;
 				childAsteroid_p->radius = GetRandomValue(ASTEROID_MIN_SIZE, asteroid_p->radius);
 				childAsteroid_p->rotSpeed = GetRandomSign()*GetRandomValue(45, 75);
-				childAsteroid_p->vel = GetRandomValue(ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED) * Rotate(normBulletVel, GetRandomValue(-90, 90));
+				childAsteroid_p->vel = GetRandomValue(ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED) * Rotate(VECTOR2_RIGHT, GetRandomValue(-180, 180));
 				childAsteroid_p->edges = GetRandomValue(5, 9);
 				childAsteroid_p->collider.circle.radius = 0.8f*childAsteroid_p->radius;
 			}
