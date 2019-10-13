@@ -27,6 +27,13 @@ struct Color
 	float a;
 };
 
+struct ColorHSV
+{
+	float h;
+	float s;
+	float v;
+};
+
 static inline Color Col(float r, float g, float b, float a = 1.0f)
 {
 	Color result = {r, g, b, a};
@@ -36,6 +43,15 @@ static inline Color Col(float r, float g, float b, float a = 1.0f)
 static inline Color Col(int r, int g, int b, int a = 255)
 {
 	return Col((float)r / 255, (float)g / 255, (float)b / 255, (float)a / 255);
+}
+
+static inline Color Col(Color32 color32)
+{
+	int a = (color32 >> 24) & 0xff;
+	int b = (color32 >> 16) & 0xff;
+	int g = (color32 >> 8) & 0xff;
+	int r = (color32 >> 0) & 0xff;
+	return Col( r, g, b, a );
 }
 
 static inline Color32 ToColor32(Color color)
@@ -49,7 +65,7 @@ static inline Color32 ToColor32(Color color)
 
 // Convert hsv floats ([0-1],[0-1],[0-1]) to rgb floats ([0-1],[0-1],[0-1]), from Foley & van Dam p593
 // also http://en.wikipedia.org/wiki/HSL_and_HSV
-static inline Color32 ColorHSVtoRGB(float h, float s, float v)
+static inline Color32 ColorHSVToColor32(float h, float s, float v)
 {
 	Color color;
 	color.a = 1.0f;
@@ -80,8 +96,35 @@ static inline Color32 ColorHSVtoRGB(float h, float s, float v)
 	return ToColor32(color);
 }
 
-static inline Color32 ColorHSV(float h, float s, float v)
+// Convert rgb floats ([0-1],[0-1],[0-1]) to hsv floats ([0-1],[0-1],[0-1]), from Foley & van Dam p592
+// Optimized http://lolengine.net/blog/2013/01/13/fast-rgb-to-hsv
+static inline ColorHSV ColorToHSV(Color color)
 {
-	Color32 color = ColorHSVtoRGB(h, s, v);
-	return color;
+	float K = 0.f;
+	if (color.g < color.b)
+	{
+		float tmp = color.g;
+		color.g = color.b;
+		color.b = tmp;
+		K = -1.f;
+	}
+	if (color.r < color.g)
+	{
+		float tmp = color.r;
+		color.r = color.g;
+		color.g = tmp;
+		K = -2.f / 6.f - K;
+	}
+
+	const float chroma = color.r - (color.g < color.b ? color.g : color.b);
+	float h = fabs(K + (color.g - color.b) / (6.f * chroma + 1e-20f));
+	float s = chroma / (color.r + 1e-20f);
+	float v = color.r;
+
+	return ColorHSV{ h, s, v };
+}
+
+static inline ColorHSV Color32ToHSV(Color32 color32)
+{
+	return ColorToHSV(Col(color32));
 }

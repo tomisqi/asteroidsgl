@@ -228,6 +228,10 @@ void GameStart(int screenWidth, int screenHeight)
 
 void GameUpdate()
 {
+#if 0
+	DrawCircle(V2(400,400), 50.0f, ColorHSV(33.0f/360.0f,1.0f, 0.30f));
+	return;
+#endif
 	Ship* ship_p = &entities.ship;
 	Bullet* bullets_p = &entities.bullets[0];
 	Asteroid* asteroids_p = &entities.asteroids[0];
@@ -328,7 +332,7 @@ void GameUpdate()
 	for (int i = 0; i < entities.asteroidsCount; i++)
 	{
 		Asteroid* asteroid_p = &asteroids_p[i];
-		DrawCircleWStartAngle(asteroid_p->pos, asteroid_p->radius, COL32_BLUE/*asteroid_p->colorU32*/, asteroid_p->edges, asteroid_p->rot);
+		DrawCircleWStartAngle(asteroid_p->pos, asteroid_p->radius, asteroid_p->color32, asteroid_p->edges, asteroid_p->rot);
 		//Debug_DrawVector(50.0f*Normalize(asteroid_p->vel), asteroid_p->pos, COLOR_GREEN);
 	}
 	for (int i = 0; i < entities.particleCount; i++)
@@ -366,6 +370,7 @@ static void SpawnAsteroidsOffscreen(int count, Asteroid* asteroids_p)
 		asteroid_p->vel = GetRandomValue(ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED) * Normalize(destPoint - spawnPoint);
 		asteroid_p->edges = GetRandomValue(5, 9);
 		asteroid_p->collider.circle.radius = 0.8f*asteroid_p->radius;
+		asteroid_p->color32 = ColorHSVToColor32(33.0f/360.0f, 1.0f, GetRandomValue(30,90)/100.0f);
 		spawnIdx = (spawnIdx + 1) % 4;
 		destIdx = (destIdx + 1) % 4;
 	}
@@ -499,6 +504,9 @@ static void AsteroidCollision(Collider* collider, Collider* otherCollider)
 	{
 	case BULLET:
 	{
+		Bullet* bullet_p = (Bullet*)otherDesc.data;
+		Vector2 normBulletVel = Normalize(bullet_p->vel);
+
 		int particleCount = GetRandomValue(6, 8);
 		for (int i = 0; i < particleCount; i++)
 		{
@@ -506,23 +514,28 @@ static void AsteroidCollision(Collider* collider, Collider* otherCollider)
 			//particle_p->vel = 500.0f * normBulletVel;
 			particle_p->vel = 100.0f * Rotate(VECTOR2_RIGHT, GetRandomValue(-180, 180));
 			particle_p->pos = asteroid_p->pos;
-			particle_p->color32 =  COL32(255, 119, 0);
+			particle_p->color32 = asteroid_p->color32;
 			particle_p->circleEdges = 4;
 		}
 
 		// Spawn smaller ones
 		int count = (asteroid_p->radius / ASTEROID_MIN_SIZE);
 		if (count > 1)
-		{
+		{			
+			ColorHSV colorHSV = Color32ToHSV(asteroid_p->color32);
+			colorHSV.v += GetRandomValue(5, 10)/100.0f;
+			Color32 childColor = ColorHSVToColor32(colorHSV.h, colorHSV.s, colorHSV.v);
+
 			for (int i = entities.asteroidsCount; i < entities.asteroidsCount + count; i++)
 			{
 				Asteroid* childAsteroid_p = &entities.asteroids[i];
 				childAsteroid_p->pos = asteroid_p->pos;
 				childAsteroid_p->radius = GetRandomValue(ASTEROID_MIN_SIZE, asteroid_p->radius);
 				childAsteroid_p->rotSpeed = GetRandomSign()*GetRandomValue(45, 75);
-				childAsteroid_p->vel = GetRandomValue(ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED) * Rotate(VECTOR2_RIGHT, GetRandomValue(-180, 180));
+				childAsteroid_p->vel = 1.2f*Magnitude(asteroid_p->vel) * Rotate(-1.0f*normBulletVel, GetRandomValue(-90, 90));
 				childAsteroid_p->edges = GetRandomValue(5, 9);
 				childAsteroid_p->collider.circle.radius = 0.8f*childAsteroid_p->radius;
+				childAsteroid_p->color32 = childColor;
 			}
 			entities.asteroidsCount += count;
 		}
