@@ -97,6 +97,11 @@ static inline Color32 ColorHSVToColor32(float h, float s, float v)
 	return ToColor32(color);
 }
 
+static inline Color32 ColorHSVToColor32(ColorHSV colorHSV)
+{
+	return ColorHSVToColor32(colorHSV.h, colorHSV.s, colorHSV.v);
+}
+
 // Convert rgb floats ([0-1],[0-1],[0-1]) to hsv floats ([0-1],[0-1],[0-1]), from Foley & van Dam p592
 // Optimized http://lolengine.net/blog/2013/01/13/fast-rgb-to-hsv
 static inline ColorHSV ColorToHSV(Color color)

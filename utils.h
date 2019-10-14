@@ -1,7 +1,8 @@
 #pragma once
 #include <stdlib.h>
 
-#define OFFSET_OF(_TYPE, _MEMBER) ((size_t)&(((_TYPE*)0)->_MEMBER))
+#define OFFSET_OF(_TYPE, _MEMBER)	((size_t)&(((_TYPE*)0)->_MEMBER))
+#define ARRAY_COUNT(A)				(sizeof(A) / sizeof(A[0]))
 
 static inline float Wrapf(float x, float min, float max)
 {
@@ -27,6 +28,11 @@ static inline int GetRandomValue(int min, int max)
 	}
 
 	return min + rand() % (abs(max - min) + 1);
+}
+
+static inline float GetRandomFloat01()
+{
+	return (double)rand() / (double)RAND_MAX;
 }
 
 static inline int GetRandomSign()
