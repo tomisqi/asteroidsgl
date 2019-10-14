@@ -16,6 +16,7 @@
 #define COL32_BLUE		COL32(0,0,255)
 #define COL32_YELLOW	COL32(255,255,0)
 #define COL32_MAGENTA	COL32(255,0,255)
+#define COL32_GRAY		COL32(255/2,255/2,255/2)
 
 typedef unsigned int Color32;
 

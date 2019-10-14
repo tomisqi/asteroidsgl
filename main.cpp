@@ -20,9 +20,8 @@
 // [ ] Better time step calculation
 // [ ] Collisions should happen after physics?
 // [ ] Level
-// [ ] Spawn smaller asteroids on collision
 // [ ] Respawn where no asteroids
-// [ ] Asteroids colors
+// [ ] Refactor main parts of asteroids.cpp into their own funcs
 
 #define WINDOW_SIZE			1000
 
@@ -78,9 +77,10 @@ int main(void)
 	GameInput_BindButton(BUTTON_RIGHT_ARROW, GLFW_KEY_RIGHT);
 	GameInput_BindButton(BUTTON_DOWN_ARROW, GLFW_KEY_DOWN);
 	GameInput_BindButton(BUTTON_LSHIFT, GLFW_KEY_LEFT_SHIFT);
+	GameInput_BindButton(BUTTON_ENTER, GLFW_KEY_ENTER);
 	ButtonState buttonStates[MAX_BUTTONS];
 	
-	Renderer_Init(2048);
+	Renderer_Init(2048+1024);
 	DebugRenderer_Init(1024);
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_COLOR_ARRAY);

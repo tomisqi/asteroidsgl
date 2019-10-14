@@ -13,6 +13,15 @@
 
 #define FIXED_DELTA_TIME		(1.0f/60.0f)
 
+#define STARS_MAX 64
+#define STARS_MIN_SIZE 2
+#define STARS_MAX_SIZE 5
+struct Star
+{
+	Vector2 pos;
+	float size;
+};
+
 struct Particle
 {
 	GUID guid;
@@ -115,12 +124,14 @@ struct Game
 	double tLastSpawn;
 	double spawnInterval;
 	unsigned long frameCounter;
+	bool paused;
 };
 
 
 // Globals
 static Entities entities;
 static Game game;
+static Star stars[STARS_MAX];
 
 static void ReserveParticles(Entities* entities_p, ParticleType particleType, int count);
 static Particle* GetParticle(Entities* entities_p, ParticleType particleType);
@@ -211,14 +222,26 @@ static void GameInit(int screenWidth, int screenHeight)
 	game.level = 0;
 	game.tCurr = 0.0f;
 	game.spawnInterval = 1.0f;
+	game.paused = false;
 
 	game.screenRect = RectNew(VECTOR2_ZERO, V2(screenWidth, screenHeight));
+}
+
+static void StarsInit()
+{
+	for (int i = 0; i < STARS_MAX; i++)
+	{
+		stars[i].pos = V2(GetRandomValue(10.0f, (int)game.screenRect.size.x), 
+						  GetRandomValue(10.0f, (int)game.screenRect.size.y));
+		stars[i].size = GetRandomValue(STARS_MIN_SIZE, STARS_MAX_SIZE);
+	}
 }
 
 void GameStart(int screenWidth, int screenHeight)
 {
 	GameInit(screenWidth, screenHeight);
 	EntitiesInit();
+	StarsInit();
 											  // Ship     Bullets  Asteroids
 	int collisionMatrix[3][3] = {/*Ship*/		{0,       0,       1,},
 								 /*Bullets*/	{0,       0,       1,},
@@ -229,7 +252,8 @@ void GameStart(int screenWidth, int screenHeight)
 void GameUpdate()
 {
 #if 0
-	DrawCircle(V2(400,400), 50.0f, ColorHSV(33.0f/360.0f,1.0f, 0.30f));
+	DrawTriangle(V2(400, 400), V2(410, 400), V2(405, 390), COL32_WHITE);
+	DrawTriangle(V2(400, 393), V2(410, 393), V2(405, 403), COL32_WHITE);
 	return;
 #endif
 	Ship* ship_p = &entities.ship;
@@ -240,6 +264,7 @@ void GameUpdate()
 	float shipRotSpeed = 0.0f;
 	float shipSpeed = 0.0f;
 	bool shoot = false;
+	static bool paused = false;
 
 	/// --- Read input ---
 	if (GameInput_Button(BUTTON_RIGHT_ARROW))	shipRotSpeed = -5.0f;
@@ -248,6 +273,7 @@ void GameUpdate()
 	if (GameInput_Button(BUTTON_DOWN_ARROW))	shipSpeed = -SHIP_SPEED;
 	if (GameInput_Button(BUTTON_LSHIFT))		shipSpeed *= BOOST_SPEED_FACTOR;
 	if (GameInput_ButtonDown(BUTTON_C))			shoot = true;
+	if (GameInput_ButtonDown(BUTTON_ENTER))     game.paused = !game.paused;
 
 	/// --- Handle collisions ---
 	//Collisions_DebugShowColliders();
@@ -284,36 +310,45 @@ void GameUpdate()
 	}
 	
 	/// --- Physics ---
-	ship_p->facing = Rotate(ship_p->facing, shipRotSpeed);
-	ship_p->vel += shipSpeed * ship_p->facing;
-	if (shipSpeed == 0.0f) 	ship_p->vel = 0.99f * ship_p->vel;
-	ship_p->pos += FIXED_DELTA_TIME * ship_p->vel;
-	ship_p->pos.x = Wrapf(ship_p->pos.x, 0.0f, game.screenRect.size.x);
-	ship_p->pos.y = Wrapf(ship_p->pos.y, 0.0f, game.screenRect.size.y);
-	Collisions_AddCollider(&ship_p->collider);
+	if (!game.paused)
+	{
+		ship_p->facing = Rotate(ship_p->facing, shipRotSpeed);
+		ship_p->vel += shipSpeed * ship_p->facing;
+		if (shipSpeed == 0.0f) 	ship_p->vel = 0.99f * ship_p->vel;
+		ship_p->pos += FIXED_DELTA_TIME * ship_p->vel;
+		ship_p->pos.x = Wrapf(ship_p->pos.x, 0.0f, game.screenRect.size.x);
+		ship_p->pos.y = Wrapf(ship_p->pos.y, 0.0f, game.screenRect.size.y);
+		Collisions_AddCollider(&ship_p->collider);
 
-	for (int i = 0; i < entities.bulletCount; i++)
-	{
-		Bullet* bullet_p = &bullets_p[i];
-		bullet_p->pos += FIXED_DELTA_TIME * bullet_p->vel;
-		bullet_p->pos.x = Wrapf(bullet_p->pos.x, 0.0f, game.screenRect.size.x);
-		bullet_p->pos.y = Wrapf(bullet_p->pos.y, 0.0f, game.screenRect.size.y);
-		Collisions_AddCollider(&bullet_p->collider);
-	}
-	for (int i = 0; i < PARTICLES_MAX; i++)
-	{
-		Particle* particle_p = &particles_p[i];
-		particle_p->pos += FIXED_DELTA_TIME * particle_p->vel;
-	}
-	for (int i = 0; i < entities.asteroidsCount; i++)
-	{
-		Asteroid* asteroid_p = &asteroids_p[i];
-		asteroid_p->pos += FIXED_DELTA_TIME * asteroid_p->vel;
-		asteroid_p->rot += FIXED_DELTA_TIME * asteroid_p->rotSpeed;
-		Collisions_AddCollider(&asteroid_p->collider);
+		for (int i = 0; i < entities.bulletCount; i++)
+		{
+			Bullet* bullet_p = &bullets_p[i];
+			bullet_p->pos += FIXED_DELTA_TIME * bullet_p->vel;
+			bullet_p->pos.x = Wrapf(bullet_p->pos.x, 0.0f, game.screenRect.size.x);
+			bullet_p->pos.y = Wrapf(bullet_p->pos.y, 0.0f, game.screenRect.size.y);
+			Collisions_AddCollider(&bullet_p->collider);
+		}
+		for (int i = 0; i < PARTICLES_MAX; i++)
+		{
+			Particle* particle_p = &particles_p[i];
+			particle_p->pos += FIXED_DELTA_TIME * particle_p->vel;
+		}
+		for (int i = 0; i < entities.asteroidsCount; i++)
+		{
+			Asteroid* asteroid_p = &asteroids_p[i];
+			asteroid_p->pos += FIXED_DELTA_TIME * asteroid_p->vel;
+			asteroid_p->rot += FIXED_DELTA_TIME * asteroid_p->rotSpeed;
+			Collisions_AddCollider(&asteroid_p->collider);
+		}
 	}
 
 	/// --- Drawing 
+	for (int i = 0; i < STARS_MAX; i++)
+	{
+		Star star = stars[i];
+		DrawCircle(star.pos, star.size, COL32_GRAY, 4);
+	}
+
 	Vector2 point1 = ship_p->pos + ship_p->size.y*ship_p->facing;
 	Vector2 point2 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, +90.0f);
 	Vector2 point3 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, -90.0f);
@@ -323,11 +358,10 @@ void GameUpdate()
 	DrawTriangle(ship_p->pos, point2, point4, COL32(20, 89, 255));
 	DrawTriangle(ship_p->pos, point3, point5, COL32(20, 89, 255));
 
-
 	for (int i = 0; i < entities.bulletCount; i++)
 	{
 		Bullet* bullet_p = &bullets_p[i];
-		DrawCircle(bullet_p->pos, bullet_p->radius, COL32_MAGENTA);
+		DrawCircle(bullet_p->pos, bullet_p->radius, COL32_RED);
 	}
 	for (int i = 0; i < entities.asteroidsCount; i++)
 	{
@@ -343,7 +377,7 @@ void GameUpdate()
 
 	//Debug_DrawVector(50.0f*ship_p->facing, ship_p->pos, COLOR_GREEN);
 
-	game.tCurr += FIXED_DELTA_TIME;
+	if (!game.paused) game.tCurr += FIXED_DELTA_TIME;
 	game.frameCounter++;
 }
 
