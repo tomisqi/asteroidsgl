@@ -1,17 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <GLFW/glfw3.h>
+#include <stb_truetype.h>
+#include <time.h>
 #include "vector.h"
 #include "color.h"
 #include "render.h"
 #include "input.h"
 #include "asteroids.h"
 #include "utils.h"
-#include <time.h>
 #include "debugrender.h"
+#include "text.h"
 
 // TODO:
-// [ ] Text
+// [x] Text
 // [ ] Menus
 // [ ] Drawing layers
 // [ ] UI
@@ -71,7 +73,7 @@ int main(void)
 	srand(time(NULL)); // Initialize random seed
 
 	GameInput_Init();
-	GameInput_BindButton(BUTTON_C, GLFW_KEY_C);
+	GameInput_BindButton(BUTTON_X, GLFW_KEY_X);
 	GameInput_BindButton(BUTTON_UP_ARROW, GLFW_KEY_UP);
 	GameInput_BindButton(BUTTON_LEFT_ARROW, GLFW_KEY_LEFT);
 	GameInput_BindButton(BUTTON_RIGHT_ARROW, GLFW_KEY_RIGHT);
@@ -85,10 +87,14 @@ int main(void)
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_COLOR_ARRAY);
 
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	GameStart(WINDOW_SIZE, WINDOW_SIZE);
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
+
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		for (int i = 0; i < MAX_BUTTONS; i++)

@@ -10,6 +10,7 @@
 #include "debugrender.h"
 #include "collision.h"
 #include "guid.h"
+#include "text.h"
 
 #define FIXED_DELTA_TIME		(1.0f/60.0f)
 
@@ -136,6 +137,7 @@ struct Game
 static Entities entities;
 static Game game;
 static Star stars[STARS_MAX];
+static int score = 0;
 
 static void ReserveParticles(Entities* entities_p, ParticleType particleType, int count);
 static Particle* GetParticle(Entities* entities_p, ParticleType particleType);
@@ -249,6 +251,7 @@ void GameStart(int screenWidth, int screenHeight)
 	GameInit(screenWidth, screenHeight);
 	EntitiesInit();
 	StarsInit();
+	InitText();
 											  // Ship     Bullets  Asteroids
 	int collisionMatrix[3][3] = {/*Ship*/		{0,       0,       1,},
 								 /*Bullets*/	{0,       0,       1,},
@@ -281,7 +284,7 @@ void GameUpdate()
 	if (GameInput_Button(BUTTON_UP_ARROW))		shipSpeed = SHIP_SPEED;
 	if (GameInput_Button(BUTTON_DOWN_ARROW))	shipSpeed = -SHIP_SPEED;
 	if (GameInput_Button(BUTTON_LSHIFT))		shipSpeed *= BOOST_SPEED_FACTOR;
-	if (GameInput_ButtonDown(BUTTON_C))			shoot = true;
+	if (GameInput_ButtonDown(BUTTON_X))			shoot = true;
 	if (GameInput_ButtonDown(BUTTON_ENTER))     game.paused = !game.paused;
 
 	/// --- Handle collisions ---
@@ -360,7 +363,7 @@ void GameUpdate()
 		if (i == rndIndex)
 		{
 			ColorHSV colorHSV = Color32ToHSV(star_p->color);
-			colorHSV.v = 0.5f + fabs(0.5f*sinf(game.tCurr));
+			colorHSV.v = 0.5f + fabs(0.5f*sinf(tCurr));
 			star_p->color = ColorHSVToColor32(colorHSV);
 		}
 	}
@@ -370,9 +373,9 @@ void GameUpdate()
 	Vector2 point3 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, -90.0f);
 	Vector2 point4 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, +135.0f);
 	Vector2 point5 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, -135.0f);
-	DrawTriangle(point1, point2, point3, ship_p->color);
-	DrawTriangle(ship_p->pos, point2, point4, ship_p->color);
-	DrawTriangle(ship_p->pos, point3, point5, ship_p->color);
+	DrawTriangle(point1, point2, point3, COL32(20, 89, 255, 255));
+	DrawTriangle(ship_p->pos, point2, point4, COL32(20, 89, 255, 255));
+	DrawTriangle(ship_p->pos, point3, point5, COL32(20, 89, 255, 255));
 
 	for (int i = 0; i < entities.bulletCount; i++)
 	{
@@ -390,6 +393,11 @@ void GameUpdate()
 		Particle* particle_p = &particles_p[i];
 		DrawCircle(particle_p->pos, particle_p->radius, particle_p->color, particle_p->circleEdges);
 	}
+	
+	static char scoreBuf[32];
+	sprintf(scoreBuf, "Score: %d", score);
+	DrawText(10, 10, scoreBuf);
+    DrawText(440, 950, "AsteroidsGl");
 
 	//Debug_DrawVector(50.0f*ship_p->facing, ship_p->pos, COLOR_GREEN);
 
@@ -545,6 +553,7 @@ static void ShipCollision(Collider* collider, Collider* otherCollider)
 		}
 		ship_p->pos = 500.0f * VECTOR2_ONE;
 		ship_p->vel = VECTOR2_ZERO; // TODO
+		score = 0;
 	} break;
 	InvalidDefaultCase;
 	}
@@ -582,6 +591,8 @@ static void AsteroidCollision(Collider* collider, Collider* otherCollider)
 		if (count > 1)
 		{			
 			ColorHSV colorHSV = Color32ToHSV(asteroid_p->color);
+			//colorHSV.v += GetRandomValue(5, 10)/100.0f;
+			Color32 childColor = ColorHSVToColor32(colorHSV.h, colorHSV.s, colorHSV.v);
 			for (int i = entities.asteroidsCount; i < entities.asteroidsCount + count; i++)
 			{
 				Asteroid* childAsteroid_p = &entities.asteroids[i];
@@ -597,6 +608,7 @@ static void AsteroidCollision(Collider* collider, Collider* otherCollider)
 		}
 
 		DestroyAsteroid(asteroid_p);
+		score++;
 	} break;
 	case SHIP:
 		break;

@@ -103,7 +103,16 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)\..\libs\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\..\libs\glfw\include;$(SolutionDir)\..\libs\stb\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(SolutionDir)\..\libs\glfw\lib-vc2017;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opengl32.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(SolutionDir)\..\libs\glfw\include;$(SolutionDir)\..\..\stb;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)\..\libs\glfw\lib-vc2017;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -118,6 +127,7 @@
     <ClCompile Include="..\input.cpp" />
     <ClCompile Include="..\main.cpp" />
     <ClCompile Include="..\render.cpp" />
+    <ClCompile Include="..\text.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\asteroids.h" />
@@ -129,6 +139,7 @@
     <ClInclude Include="..\rect.h" />
     <ClInclude Include="..\render.h" />
     <ClInclude Include="..\shapes.h" />
+    <ClInclude Include="..\text.h" />
     <ClInclude Include="..\utils.h" />
     <ClInclude Include="..\vector.h" />
   </ItemGroup>

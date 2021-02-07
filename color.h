@@ -7,6 +7,7 @@
 #define COLOR_BLUE		Col(0.0f, 0.0f, 1.0f)
 #define COLOR_YELLOW	Col(1.0f, 1.0f, 0.0f)
 #define COLOR_MAGENTA	Col(1.0f, 0.0f, 1.0f)
+#define COLOR_BLACK		Col(0.0f, 0.0f, 0.0f)
 
 #define COL32(R,G,B)	(((R & 0xff) << 0) | ((G & 0xff) << 8) | ((B & 0xff) << 16) |  (0xff) << 24)
 #define COL32A(R,G,B,A) (((R & 0xff) << 0) | ((G & 0xff) << 8) | ((B & 0xff) << 16) | (A & 0xff) << 24)
@@ -17,6 +18,7 @@
 #define COL32_YELLOW	COL32(255,255,0)
 #define COL32_MAGENTA	COL32(255,0,255)
 #define COL32_GRAY		COL32(255/2,255/2,255/2)
+#define COL32_BLACK		COL32(0,0,0)
 
 typedef unsigned int Color32;
 
