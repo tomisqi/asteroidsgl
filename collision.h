@@ -34,6 +34,7 @@ struct Collider
 };
 
 void Collisions_Init(int collisionMatrix[][3], int collisionLayers);
+void Collisions_Clear();
 void Collisions_NewFrame();
 void Collisions_AddCollider(Collider* collider);
 void Collisions_CheckCollisions();

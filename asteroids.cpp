@@ -47,6 +47,7 @@ struct Ship
 	Vector2 vel;
 	Vector2 facing;
 	Vector2 size;
+	double tInvinsible;
 	Color32 color;
 };
 
@@ -73,6 +74,12 @@ struct Asteroid
 	float rot;
 	float rotSpeed;
 	Color32 color;
+};
+
+struct AsteroidsSpawn
+{
+	double tLastSpawn;
+	double spawnInterval;
 };
 
 struct ParticleShare
@@ -121,24 +128,22 @@ struct Entities
 };
 
 #define MAX_ENTITIES  (1/*ship*/ + BULLETS_MAX + ASTEROIDS_MAX + PARTICLES_MAX + 1/*dummy*/)
-struct Game
-{
-	Rect screenRect;
-	int level;
-	double tCurr;
-	double tLastSpawn;
-	double spawnInterval;
-	unsigned long frameCounter;
-	bool paused;
-};
+
 
 
 // Globals
+Game game;
 static Entities entities;
-static Game game;
 static Star stars[STARS_MAX];
 static int score = 0;
+static AsteroidsSpawn asteroidSpawn;
+static int level = 1;
+static bool paused;
+static double tCurr = 0;
 
+static void MainMenuUpdate();
+static void AsteroidsUpdate();
+static void AsteroidsRestart();
 static void ReserveParticles(Entities* entities_p, ParticleType particleType, int count);
 static Particle* GetParticle(Entities* entities_p, ParticleType particleType);
 static void SpawnAsteroidsOffscreen(int count, Asteroid* asteroids_p);
@@ -149,7 +154,7 @@ static void AsteroidCollision(Collider* collider, Collider* otherCollider);
 static void BulletCollision(Collider* collider, Collider* otherCollider);
 
 
-static void InitParticles()
+static void ClearParticles()
 {
 	memset(&entities.particleShare[0], 0, sizeof(entities.particleShare));
 	entities.particleCount = 0;
@@ -159,9 +164,7 @@ static void EntitiesInit()
 {
 	entities = {0};
 
-	Guid_Init(MAX_ENTITIES);
-
-	InitParticles();
+	ClearParticles();
 
 	Ship* ship_p = &entities.ship;
 	ship_p->guid = ship_p->collider.guid = Guid_AddToGUIDTable(SHIP, ship_p);
@@ -169,6 +172,9 @@ static void EntitiesInit()
 	ship_p->pos = 500.0f * VECTOR2_ONE;
 	ship_p->size = 30.0f * V2(1.0f, 1.2f);
 	ship_p->vel = VECTOR2_ZERO;
+	ship_p->color = COL32A(20, 89, 255, 255);
+	ship_p->tInvinsible = tCurr + 1.0f;
+
 	//ship_p->collider.colliderType = COLLIDER_BOX;	
 	//ship_p->collider.box.localRect = RectNew(ship_p->pos - 0.5f*ship_p->size, 0.5f*ship_p->size);
 	ship_p->collider.posRef = &ship_p->pos;
@@ -224,17 +230,6 @@ static void EntitiesInit()
 	Guid_CheckTable();
 }
 
-static void GameInit(int screenWidth, int screenHeight)
-{
-	game = { 0 };
-	game.level = 0;
-	game.tCurr = 0.0f;
-	game.spawnInterval = 1.0f;
-	game.paused = false;
-
-	game.screenRect = RectNew(VECTOR2_ZERO, V2(screenWidth, screenHeight));
-}
-
 static void StarsInit()
 {
 	for (int i = 0; i < STARS_MAX; i++)
@@ -248,18 +243,74 @@ static void StarsInit()
 
 void GameStart(int screenWidth, int screenHeight)
 {
-	GameInit(screenWidth, screenHeight);
-	EntitiesInit();
-	StarsInit();
-	InitText();
+	game.scene = MAIN_MENU;
+	game.doQuit = false;
+	game.screenRect = RectNew(VECTOR2_ZERO, V2(screenWidth, screenHeight));
+
+	
 											  // Ship     Bullets  Asteroids
 	int collisionMatrix[3][3] = {/*Ship*/		{0,       0,       1,},
 								 /*Bullets*/	{0,       0,       1,},
 								 /*Asteroids*/	{1,       1,       0,}, };
 	Collisions_Init(collisionMatrix, 3);
+	Guid_Init(MAX_ENTITIES);
+	TextInit();
 }
 
 void GameUpdate()
+{
+	switch (game.scene)
+	{
+	case MAIN_MENU:
+		MainMenuUpdate();
+		break;
+	case GAME:
+		AsteroidsUpdate();
+		break;
+	}
+}
+
+static void MainMenuUpdate()
+{
+	DrawText(410, 950, "AsteroidsGl");
+	DrawText(340, 600, "[S] Start New Game");
+	DrawText(340, 500, "[C] Controls");
+	DrawText(340, 400, "[Q] Quit Game");
+
+	if (GameInput_ButtonDown(BUTTON_S))
+	{
+		game.scene = GAME;
+		AsteroidsRestart();
+	}
+	if (GameInput_ButtonDown(BUTTON_Q))
+	{
+		game.doQuit = true;
+	}
+}
+
+static float tNextShoot = 3.0f;
+static int scoreBest = 0;
+
+static void AsteroidsRestart()
+{
+	level = 0;
+	asteroidSpawn = { 0 };
+	asteroidSpawn.spawnInterval = 1.0f;
+	asteroidSpawn.tLastSpawn = 0;
+	paused = false;
+	tCurr = 0;
+	Collisions_Clear();
+	Guid_Clear();
+	EntitiesInit();
+	StarsInit();
+
+	if (score > scoreBest)  scoreBest = score;
+	score = 0;
+
+	tNextShoot = 3.0f;
+}
+
+static void AsteroidsUpdate()
 {
 #if 0
 	DrawTriangle(V2(400, 400), V2(410, 400), V2(405, 390), COL32_WHITE);
@@ -276,7 +327,6 @@ void GameUpdate()
 	float shipRotSpeed = 0.0f;
 	float shipSpeed = 0.0f;
 	bool shoot = false;
-	static bool paused = false;
 
 	/// --- Read input ---
 	if (GameInput_Button(BUTTON_RIGHT_ARROW))	shipRotSpeed = -5.0f;
@@ -285,10 +335,10 @@ void GameUpdate()
 	if (GameInput_Button(BUTTON_DOWN_ARROW))	shipSpeed = -SHIP_SPEED;
 	if (GameInput_Button(BUTTON_LSHIFT))		shipSpeed *= BOOST_SPEED_FACTOR;
 	if (GameInput_ButtonDown(BUTTON_X))			shoot = true;
-	if (GameInput_ButtonDown(BUTTON_ENTER))     game.paused = !game.paused;
+	if (GameInput_ButtonDown(BUTTON_ENTER))     paused = !paused;
 
 	/// --- Handle collisions ---
-	//Collisions_DebugShowColliders();
+	Collisions_DebugShowColliders();
 	Collisions_CheckCollisions();
 	Collisions_NewFrame();
 
@@ -297,10 +347,10 @@ void GameUpdate()
 	DestroyOffScreenAsteroids(asteroids_p);
 
 	/// --- Spawning ---
-	if ((game.tCurr - game.tLastSpawn) > game.spawnInterval)
+	if ((tCurr - asteroidSpawn.tLastSpawn) > asteroidSpawn.spawnInterval)
 	{
 		SpawnAsteroidsOffscreen(1, asteroids_p);
-		game.tLastSpawn = game.tCurr;
+		asteroidSpawn.tLastSpawn = tCurr;
 	}
 	if (shoot)
 	{
@@ -308,7 +358,7 @@ void GameUpdate()
 		Bullet* bullet_p = &bullets_p[entities.bulletCount];
 		bullet_p->vel = 500.0f * ship_p->facing + ship_p->vel;
 		bullet_p->pos = ship_p->pos + ship_p->size.y*ship_p->facing;
-		bullet_p->tDestroy = game.tCurr + BULLET_LIFETIME;
+		bullet_p->tDestroy = tCurr + BULLET_LIFETIME;
 		entities.bulletCount++;
 	}
 	if (fabs(shipSpeed) > 0.0f)
@@ -322,7 +372,7 @@ void GameUpdate()
 	}
 	
 	/// --- Physics ---
-	if (!game.paused)
+	if (!paused)
 	{
 		ship_p->facing = Rotate(ship_p->facing, shipRotSpeed);
 		ship_p->vel += shipSpeed * ship_p->facing;
@@ -331,6 +381,13 @@ void GameUpdate()
 		ship_p->pos.x = Wrapf(ship_p->pos.x, 0.0f, game.screenRect.size.x);
 		ship_p->pos.y = Wrapf(ship_p->pos.y, 0.0f, game.screenRect.size.y);
 		Collisions_AddCollider(&ship_p->collider);
+
+		ship_p->color = SetAlpha(ship_p->color, 1.0f);
+		if (tCurr < ship_p->tInvinsible)
+		{
+			int cycle = (int) (tCurr / 0.05f);
+			ship_p->color = SetAlpha(ship_p->color, cycle % 2 == 0 ? 0.0f : 1.0f);
+		}
 
 		for (int i = 0; i < entities.bulletCount; i++)
 		{
@@ -353,6 +410,30 @@ void GameUpdate()
 			Collisions_AddCollider(&asteroid_p->collider);
 		}
 	}
+	
+	{
+		
+		if (tCurr >= tNextShoot)
+		{
+			//ship_p->facing = Rotate(ship_p->facing, GetRandomValue(0, 360));
+			Asteroid* asteroid_p = &asteroids_p[GetRandomValue(0, entities.asteroidsCount)];
+			ship_p->facing = Normalize(asteroid_p->pos - ship_p->pos);
+			assert(entities.bulletCount < BULLETS_MAX);
+			Bullet* bullet_p = &bullets_p[entities.bulletCount];
+			bullet_p->vel = 500.0f * ship_p->facing + ship_p->vel;
+			bullet_p->pos = ship_p->pos + ship_p->size.y*ship_p->facing;
+			bullet_p->tDestroy = tCurr + BULLET_LIFETIME;
+			entities.bulletCount++;
+
+			tNextShoot += 1.0f;
+		}
+	}
+
+	float tRemaining = 20.0f - tCurr;
+	if (tRemaining <= 0)
+	{
+		AsteroidsRestart();
+	}
 
 	/// --- Drawing 
 	int rndIndex = GetRandomValue(0, 63);
@@ -373,9 +454,9 @@ void GameUpdate()
 	Vector2 point3 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, -90.0f);
 	Vector2 point4 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, +135.0f);
 	Vector2 point5 = ship_p->pos + (ship_p->size.x / 2.0f)*Rotate(ship_p->facing, -135.0f);
-	DrawTriangle(point1, point2, point3, COL32(20, 89, 255, 255));
-	DrawTriangle(ship_p->pos, point2, point4, COL32(20, 89, 255, 255));
-	DrawTriangle(ship_p->pos, point3, point5, COL32(20, 89, 255, 255));
+	DrawTriangle(point1, point2, point3, ship_p->color);
+	DrawTriangle(ship_p->pos, point2, point4, ship_p->color);
+	DrawTriangle(ship_p->pos, point3, point5, ship_p->color);
 
 	for (int i = 0; i < entities.bulletCount; i++)
 	{
@@ -394,15 +475,29 @@ void GameUpdate()
 		DrawCircle(particle_p->pos, particle_p->radius, particle_p->color, particle_p->circleEdges);
 	}
 	
-	static char scoreBuf[32];
-	sprintf(scoreBuf, "Score: %d", score);
-	DrawText(10, 10, scoreBuf);
-    DrawText(440, 950, "AsteroidsGl");
+	Renderer_Render();
+	DebugRenderer_Render();
+
+	// UI
+	if (paused)
+	{
+		DrawText(340, 600, "[Enter] Continue");
+		DrawText(340, 500, "    [C] Controls");
+		DrawText(340, 400, "    [Q] Quit");
+
+		if (GameInput_Button(BUTTON_Q))
+		{
+			game.scene = MAIN_MENU;
+		}
+	}
+	char buf[512];
+	sprintf(buf, "Time:  %2.2f", 20.0f - tCurr); DrawText(10, 70, buf);
+	sprintf(buf, "Score: %d", score); DrawText(10, 40, buf);
+	sprintf(buf, "Best:  %d", scoreBest); DrawText(10, 10, buf);
 
 	//Debug_DrawVector(50.0f*ship_p->facing, ship_p->pos, COLOR_GREEN);
 
-	if (!game.paused) game.tCurr += FIXED_DELTA_TIME;
-	game.frameCounter++;
+	if (!paused) tCurr += FIXED_DELTA_TIME;
 }
 
 static void SpawnAsteroidsOffscreen(int count, Asteroid* asteroids_p)
@@ -479,7 +574,7 @@ static void DestroyOldBullets(Bullet* bullets_p)
 	for (int i = bulletCount - 1; i >= 0; i--)
 	{
 		Bullet* bullet_p = &bullets_p[i];
-		if (game.tCurr > bullet_p->tDestroy)
+		if (tCurr > bullet_p->tDestroy)
 		{
 			DestroyBullet(bullet_p);
 		}
@@ -554,6 +649,10 @@ static void ShipCollision(Collider* collider, Collider* otherCollider)
 		ship_p->pos = 500.0f * VECTOR2_ONE;
 		ship_p->vel = VECTOR2_ZERO; // TODO
 		score = 0;
+		if (tCurr > ship_p->tInvinsible)
+		{
+			AsteroidsRestart();
+		}
 	} break;
 	InvalidDefaultCase;
 	}

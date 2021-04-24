@@ -11,6 +11,9 @@ enum ButtonState
 enum ButtonVal
 {
 	BUTTON_X = 0,
+	BUTTON_Q,
+	BUTTON_C,
+	BUTTON_S,
 	BUTTON_UP_ARROW,
 	BUTTON_LEFT_ARROW,
 	BUTTON_RIGHT_ARROW,

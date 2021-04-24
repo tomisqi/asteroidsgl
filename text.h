@@ -1,4 +1,4 @@
 #pragma once
 
-void InitText();
+void TextInit();
 void DrawText(float x, float y, char* text);

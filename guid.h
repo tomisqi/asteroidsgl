@@ -9,6 +9,7 @@ struct GuidDescriptor
 };
 
 void Guid_Init(int maxEntities);
+void Guid_Clear();
 void Guid_CheckTable();
 GUID Guid_AddToGUIDTable(int entityType, void* entityData);
 void Guid_SwapGuidDescriptors(GUID guid1, GUID guid2);

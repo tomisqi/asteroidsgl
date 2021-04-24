@@ -14,15 +14,13 @@
 
 // TODO:
 // [x] Text
-// [ ] Menus
+// [x] Menus
 // [ ] Drawing layers
-// [ ] UI
 // [ ] Collision Box-Circle
 // [ ] Ship Damage/Health
 // [ ] Better time step calculation
 // [ ] Collisions should happen after physics?
 // [ ] Level
-// [ ] Respawn where no asteroids
 // [ ] Refactor main parts of asteroids.cpp into their own funcs
 
 #define WINDOW_SIZE			1000
@@ -74,6 +72,9 @@ int main(void)
 
 	GameInput_Init();
 	GameInput_BindButton(BUTTON_X, GLFW_KEY_X);
+	GameInput_BindButton(BUTTON_Q, GLFW_KEY_Q);
+	GameInput_BindButton(BUTTON_C, GLFW_KEY_C);
+	GameInput_BindButton(BUTTON_S, GLFW_KEY_S);
 	GameInput_BindButton(BUTTON_UP_ARROW, GLFW_KEY_UP);
 	GameInput_BindButton(BUTTON_LEFT_ARROW, GLFW_KEY_LEFT);
 	GameInput_BindButton(BUTTON_RIGHT_ARROW, GLFW_KEY_RIGHT);
@@ -93,26 +94,25 @@ int main(void)
 	GameStart(WINDOW_SIZE, WINDOW_SIZE);
 	while (!glfwWindowShouldClose(window))
 	{
-		glfwPollEvents();
+	  glfwPollEvents();
 
-		glClear(GL_COLOR_BUFFER_BIT);
+	  glClear(GL_COLOR_BUFFER_BIT);
 
-		for (int i = 0; i < MAX_BUTTONS; i++)
-		{
-			buttonStates[i] = (ButtonState)glfwGetKey(window, GameInput_GetBinding(i)); // TODO: Remove casting
-		}
+	  for (int i = 0; i < MAX_BUTTONS; i++)
+	  {
+	    buttonStates[i] = (ButtonState)glfwGetKey(window, GameInput_GetBinding(i)); // TODO: Remove casting
+	  }
 
-		GameInput_NewFrame(buttonStates);
-		Renderer_NewFrame();
-		DebugRenderer_NewFrame();
+	  GameInput_NewFrame(buttonStates);
+	  Renderer_NewFrame();
+	  DebugRenderer_NewFrame();
 
-		GameUpdate();
+	  GameUpdate();
 
-		Renderer_Render();
-		DebugRenderer_Render();
+	  glfwMakeContextCurrent(window);
+	  glfwSwapBuffers(window);
 
-		glfwMakeContextCurrent(window);
-		glfwSwapBuffers(window);
+	  if (game.doQuit) break;
 	}
 
 	glfwDestroyWindow(window);

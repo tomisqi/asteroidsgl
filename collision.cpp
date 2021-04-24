@@ -61,6 +61,12 @@ void Collisions_Init(int collisionMatrix[][3], int collisionLayers)
 	collisionCallback.count = 0;
 }
 
+void Collisions_Clear()
+{
+	collisions.collidersCount = 0;
+	collisionCallback.count = 0;
+}
+
 void Collisions_NewFrame()
 {
 	collisions.gcID = 0;

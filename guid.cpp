@@ -18,11 +18,9 @@ static GUID GetNextGUID()
 	return guidData.gguid++;
 }
 
-void Guid_Init(int maxEntities)
+void Guid_Clear()
 {
-	guidData.guidTable = (GuidDescriptor*)malloc(sizeof(GuidDescriptor) * maxEntities);
-	memset(guidData.guidTable, 0, sizeof(GuidDescriptor) * maxEntities);
-	guidData.maxEntities = maxEntities;
+	memset(guidData.guidTable, 0, sizeof(GuidDescriptor) * guidData.maxEntities);
 
 	// first guid in the table is a dummy
 	GuidDescriptor dummyDesc = { -1, NULL };
@@ -30,6 +28,15 @@ void Guid_Init(int maxEntities)
 
 	guidData.gguid = 1;
 }
+
+void Guid_Init(int maxEntities)
+{
+	guidData.guidTable = (GuidDescriptor*)malloc(sizeof(GuidDescriptor) * maxEntities);
+	guidData.maxEntities = maxEntities;
+
+	Guid_Clear();
+}
+
 
 void Guid_CheckTable()
 {

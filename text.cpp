@@ -9,9 +9,9 @@ unsigned char temp_bitmap[512 * 512];
 stbtt_bakedchar cdata[96]; // ASCII 32..126 is 95 glyphs
 GLuint ftex;
 
-void InitText()
+void TextInit()
 {
-	fread(ttf_buffer, 1, 1 << 20, fopen("C:/Windows/Fonts/arial.ttf", "rb"));
+	fread(ttf_buffer, 1, 1 << 20, fopen("C:/Windows/Fonts/consola.ttf", "rb"));
 	stbtt_BakeFontBitmap(ttf_buffer, 0, 32.0, temp_bitmap, 512, 512, 32, 96, cdata); // no guarantee this fits!
 	// can free ttf_buffer at this point
 	glGenTextures(1, &ftex);

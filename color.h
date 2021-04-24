@@ -19,6 +19,8 @@
 #define COL32_MAGENTA	COL32(255,0,255)
 #define COL32_GRAY		COL32(255/2,255/2,255/2)
 #define COL32_BLACK		COL32(0,0,0)
+#define COL32_ALPHAZERO COL32A(0xff,0xff,0xff,0)
+#define COL32_ALPHAONE  COL32A(0xff,0xff,0xff,1)
 
 typedef unsigned int Color32;
 
@@ -64,6 +66,13 @@ static inline Color32 ToColor32(Color color)
 	int b = (int)(color.b * 255);
 	int a = (int)(color.a * 255);
 	return COL32A(r,g,b,a);
+}
+
+static inline Color32 SetAlpha(Color32 color, float alpha)
+{
+    int a = (int)(alpha * 255);
+	Color32 mask = (1 << 24) - 1;
+	return (color & mask) | a << 24;
 }
 
 // Convert hsv floats ([0-1],[0-1],[0-1]) to rgb floats ([0-1],[0-1],[0-1]), from Foley & van Dam p593
