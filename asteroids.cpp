@@ -12,8 +12,6 @@
 #include "guid.h"
 #include "text.h"
 
-#define FIXED_DELTA_TIME		(1.0f/60.0f)
-
 #define STARS_MAX 64
 #define STARS_MIN_SIZE 2
 #define STARS_MAX_SIZE 4
@@ -241,12 +239,12 @@ static void StarsInit()
 	}
 }
 
-void GameStart(int screenWidth, int screenHeight)
+void GameStart(int screenWidth, int screenHeight, float deltaT)
 {
 	game.scene = MAIN_MENU;
 	game.doQuit = false;
 	game.screenRect = RectNew(VECTOR2_ZERO, V2(screenWidth, screenHeight));
-
+	game.deltaT = deltaT;
 	
 											  // Ship     Bullets  Asteroids
 	int collisionMatrix[3][3] = {/*Ship*/		{0,       0,       1,},
@@ -377,7 +375,7 @@ static void AsteroidsUpdate()
 		ship_p->facing = Rotate(ship_p->facing, shipRotSpeed);
 		ship_p->vel += shipSpeed * ship_p->facing;
 		if (shipSpeed == 0.0f) 	ship_p->vel = 0.99f * ship_p->vel;
-		ship_p->pos += FIXED_DELTA_TIME * ship_p->vel;
+		ship_p->pos += game.deltaT * ship_p->vel;
 		ship_p->pos.x = Wrapf(ship_p->pos.x, 0.0f, game.screenRect.size.x);
 		ship_p->pos.y = Wrapf(ship_p->pos.y, 0.0f, game.screenRect.size.y);
 		Collisions_AddCollider(&ship_p->collider);
@@ -392,7 +390,7 @@ static void AsteroidsUpdate()
 		for (int i = 0; i < entities.bulletCount; i++)
 		{
 			Bullet* bullet_p = &bullets_p[i];
-			bullet_p->pos += FIXED_DELTA_TIME * bullet_p->vel;
+			bullet_p->pos += game.deltaT * bullet_p->vel;
 			bullet_p->pos.x = Wrapf(bullet_p->pos.x, 0.0f, game.screenRect.size.x);
 			bullet_p->pos.y = Wrapf(bullet_p->pos.y, 0.0f, game.screenRect.size.y);
 			Collisions_AddCollider(&bullet_p->collider);
@@ -400,17 +398,17 @@ static void AsteroidsUpdate()
 		for (int i = 0; i < PARTICLES_MAX; i++)
 		{
 			Particle* particle_p = &particles_p[i];
-			particle_p->pos += FIXED_DELTA_TIME * particle_p->vel;
+			particle_p->pos += game.deltaT * particle_p->vel;
 		}
 		for (int i = 0; i < entities.asteroidsCount; i++)
 		{
 			Asteroid* asteroid_p = &asteroids_p[i];
-			asteroid_p->pos += FIXED_DELTA_TIME * asteroid_p->vel;
-			asteroid_p->rot += FIXED_DELTA_TIME * asteroid_p->rotSpeed;
+			asteroid_p->pos += game.deltaT * asteroid_p->vel;
+			asteroid_p->rot += game.deltaT * asteroid_p->rotSpeed;
 			Collisions_AddCollider(&asteroid_p->collider);
 		}
 	}
-	
+#if 0 // Enable to make the ship shoot at random directions.
 	{
 		
 		if (tCurr >= tNextShoot)
@@ -428,7 +426,7 @@ static void AsteroidsUpdate()
 			tNextShoot += 1.0f;
 		}
 	}
-
+#endif
 	float tRemaining = 20.0f - tCurr;
 	if (tRemaining <= 0)
 	{
@@ -497,7 +495,7 @@ static void AsteroidsUpdate()
 
 	//Debug_DrawVector(50.0f*ship_p->facing, ship_p->pos, COLOR_GREEN);
 
-	if (!paused) tCurr += FIXED_DELTA_TIME;
+	if (!paused) tCurr += game.deltaT;
 }
 
 static void SpawnAsteroidsOffscreen(int count, Asteroid* asteroids_p)

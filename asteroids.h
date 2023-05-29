@@ -15,9 +15,10 @@ struct Game
 	SceneE scene;
 	Rect screenRect;
 	bool doQuit;
+	float deltaT;
 };
 
 extern Game game;
 
-void GameStart(int screenWidth, int screenHeight);
+void GameStart(int screenWidth, int screenHeight, float deltaT);
 void GameUpdate();

@@ -30,6 +30,15 @@ static void GlfwErrorCallback(int error, const char* description)
 	fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
+static float GetDeltaT()
+{
+	GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
+	const GLFWvidmode* videoMode = glfwGetVideoMode(primaryMonitor);
+	int refreshRate = videoMode->refreshRate;
+
+	return 1.0f / refreshRate;
+}
+
 static void SetProjectionMatrix()
 {
 	// ignore model view matrix - dont need it
@@ -91,7 +100,7 @@ int main(void)
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	GameStart(WINDOW_SIZE, WINDOW_SIZE);
+	GameStart(WINDOW_SIZE, WINDOW_SIZE, GetDeltaT());
 	while (!glfwWindowShouldClose(window))
 	{
 	  glfwPollEvents();
