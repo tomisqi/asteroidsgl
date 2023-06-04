@@ -90,6 +90,7 @@ int main(void)
 	GameInput_BindButton(BUTTON_DOWN_ARROW, GLFW_KEY_DOWN);
 	GameInput_BindButton(BUTTON_LSHIFT, GLFW_KEY_LEFT_SHIFT);
 	GameInput_BindButton(BUTTON_ENTER, GLFW_KEY_ENTER);
+	GameInput_BindButton(BUTTON_ESC, GLFW_KEY_ESCAPE);
 	ButtonState buttonStates[MAX_BUTTONS];
 	
 	Renderer_Init(2048+1024);

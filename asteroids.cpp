@@ -327,13 +327,13 @@ static void AsteroidsUpdate()
 	bool shoot = false;
 
 	/// --- Read input ---
-	if (GameInput_Button(BUTTON_RIGHT_ARROW))	shipRotSpeed = -5.0f;
-	if (GameInput_Button(BUTTON_LEFT_ARROW))	shipRotSpeed = 5.0f;
+	if (GameInput_Button(BUTTON_RIGHT_ARROW))	shipRotSpeed = -2.0f;
+	if (GameInput_Button(BUTTON_LEFT_ARROW))	shipRotSpeed = 2.0f;
 	if (GameInput_Button(BUTTON_UP_ARROW))		shipSpeed = SHIP_SPEED;
 	if (GameInput_Button(BUTTON_DOWN_ARROW))	shipSpeed = -SHIP_SPEED;
 	if (GameInput_Button(BUTTON_LSHIFT))		shipSpeed *= BOOST_SPEED_FACTOR;
 	if (GameInput_ButtonDown(BUTTON_X))			shoot = true;
-	if (GameInput_ButtonDown(BUTTON_ENTER))     paused = !paused;
+	if (GameInput_ButtonDown(BUTTON_ESC))       paused = !paused;
 
 	/// --- Handle collisions ---
 	Collisions_DebugShowColliders();
@@ -479,9 +479,9 @@ static void AsteroidsUpdate()
 	// UI
 	if (paused)
 	{
-		DrawText(340, 600, "[Enter] Continue");
+		DrawText(340, 600, "  [Esc] Continue");
 		DrawText(340, 500, "    [C] Controls");
-		DrawText(340, 400, "    [Q] Quit");
+		DrawText(340, 400, "    [Q] Main Menu");
 
 		if (GameInput_Button(BUTTON_Q))
 		{
